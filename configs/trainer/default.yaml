@@ -1,0 +1,9 @@
+_target_: pytorch_lightning.Trainer
+logger:
+  _target_: pytorch_lightning.loggers.WandbLogger
+  project: moma
+  save_dir: /home/alanzluo/log
+gpus: [0, 1]
+strategy: ddp
+replace_sampler_ddp: False
+max_epochs: 200

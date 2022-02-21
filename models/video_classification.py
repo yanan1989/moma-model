@@ -1,16 +1,15 @@
-from pytorchvideo.models import create_slowfast
+from hydra.utils import instantiate
+from omegaconf import DictConfig
 from pytorch_lightning import LightningModule
-import torch
 import torch.nn.functional as F
 import torchmetrics
 
 
-class SlowFastModule(LightningModule):
-  def __init__(self, cfg):
+class VideoClassificationModule(LightningModule):
+  def __init__(self, optim: DictConfig, backbone: DictConfig) -> None:
     super().__init__()
-    self.cfg = cfg
-    # self.model = torch.hub.load('facebookresearch/pytorchvideo', 'slowfast_r50', pretrained=True)
-    self.model = create_slowfast()
+    self.optim = optim
+    self.backbone = instantiate(backbone)
     self.metric = torchmetrics.Accuracy()
 
   def on_train_epoch_start(self):
@@ -29,7 +28,7 @@ class SlowFastModule(LightningModule):
 
   def training_step(self, batch, batch_idx):
     batch_size = batch['video'][0].shape[0]
-    y_hat = self.model(batch['video'])
+    y_hat = self.backbone(batch['video'])
     loss = F.cross_entropy(y_hat, batch['label'])
     acc = self.metric(F.softmax(y_hat, dim=-1), batch['label'])
 
@@ -39,7 +38,7 @@ class SlowFastModule(LightningModule):
 
   def validation_step(self, batch, batch_idx):
     batch_size = batch['video'][0].shape[0]
-    y_hat = self.model(batch['video'])
+    y_hat = self.backbone(batch['video'])
     loss = F.cross_entropy(y_hat, batch['label'])
     acc = self.metric(F.softmax(y_hat, dim=-1), batch['label'])
 
@@ -48,6 +47,6 @@ class SlowFastModule(LightningModule):
     return loss
 
   def configure_optimizers(self):
-    optimizer = torch.optim.SGD(self.parameters(), lr=self.cfg.lr, momentum=self.cfg.momentum, weight_decay=self.cfg.wd)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, self.cfg.max_epochs, last_epoch=-1)
+    optimizer = instantiate(self.optim.optimizer, params=self.parameters())
+    scheduler = instantiate(self.optim.scheduler, optimizer=optimizer)
     return [optimizer], [scheduler]

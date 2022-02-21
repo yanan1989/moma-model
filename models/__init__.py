@@ -1,1 +1,1 @@
-from .slowfast import SlowFastModule
+from .video_classification import VideoClassificationModule

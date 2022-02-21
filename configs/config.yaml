@@ -1,10 +1,7 @@
 defaults:
-  - data_module/data_module
-  - module/module
-  - _self_
-
-gpu: [0, 1]
-strategy: ddp
-replace_sampler_ddp: False
-project: slowfast
-dir_log: /home/alanzluo/log
+  - data: default
+  - model: default
+  - trainer: default
+  - data/backbone@data: slowfast
+  - data/split@data: sact
+  - model/backbone: slowfast

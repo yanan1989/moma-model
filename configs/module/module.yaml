@@ -1,4 +1,0 @@
-max_epochs: 200
-lr: 0.1
-momentum: 0.9
-wd: 1e-4

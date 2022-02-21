@@ -1,0 +1,7 @@
+# Reference: https://github.com/facebookresearch/pytorchvideo/blob/main/pytorchvideo_trainer/pytorchvideo_trainer/conf/module/model/slowfast_r50.yaml
+_target_: pytorchvideo.models.slowfast.create_slowfast
+input_channels: [3, 3]
+model_depth: 50
+model_num_class: ${data.dataset.num_classes}
+dropout_rate: 0.5
+slowfast_fusion_conv_kernel_size: [7, 1, 1]

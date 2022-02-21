@@ -1,0 +1,13 @@
+_target_: data.MOMADataModule
+dataloader:
+  _target_: torch.utils.data.DataLoader
+  num_workers: 8
+  batch_size: 32
+dataset:
+  fps: 30
+  moma:
+    _target_: momaapi.MOMA
+    dir_moma: /home/alanzluo/data/moma
+  transform:
+    mean: [0.45, 0.45, 0.45]
+    std: [0.225, 0.225, 0.225]

@@ -1,0 +1,4 @@
+num_crops: 3
+num_clips: 10
+T: 16
+tau: 4

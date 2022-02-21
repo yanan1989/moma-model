@@ -10,7 +10,7 @@ from pytorchvideo.transforms import (
   ShortSideScale,
   UniformTemporalSubsample
 )
-from torch.utils.data import DistributedSampler, RandomSampler
+from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 from torchvision.transforms import (
     CenterCrop,
     Compose,
@@ -28,7 +28,7 @@ class MOMADataModule(LightningDataModule):
     self.cfg = cfg
 
   def setup(self, stage=None):
-    moma = MOMA(self.cfg.dir_dataset, toy=True)
+    moma = MOMA(self.cfg.dir_dataset)
 
     labeled_video_paths_train = get_labeled_video_paths(moma, 'sact', 'train')
     labeled_video_paths_val = get_labeled_video_paths(moma, 'sact', 'val')
@@ -38,8 +38,7 @@ class MOMADataModule(LightningDataModule):
 
     # pytorch-lightning does not handle iterable datasets
     # Reference: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#replace-sampler-ddp
-    # use_ddp = self.trainer._accelerator_connector.strategy == 'ddp'
-    use_ddp = False
+    use_ddp = self.trainer._accelerator_connector.strategy == 'ddp'
     video_sampler_train = DistributedSampler if use_ddp else RandomSampler
     video_sampler_val = DistributedSampler if use_ddp else RandomSampler
 
@@ -65,8 +64,8 @@ class MOMADataModule(LightningDataModule):
           UniformTemporalSubsample(self.cfg.T*self.cfg.alpha),
           Div255(),
           Normalize(self.cfg.mean, self.cfg.std),
-          ShortSideScale(size=self.cfg.train.size_scale),
-          CenterCrop(self.cfg.train.size_crop),
+          ShortSideScale(size=self.cfg.val.size_scale),
+          CenterCrop(self.cfg.val.size_crop),
           SlowFastPackPathway(self.cfg.alpha)
         ])
       ),
@@ -87,11 +86,9 @@ class MOMADataModule(LightningDataModule):
     self.dataset_val = dataset_val
 
   def train_dataloader(self):
-    # dataloader_train = DataLoader(self.dataset_train, batch_size=self.cfg.batch_size, num_workers=self.cfg.num_workers)
-    # return dataloader_train
-    pass
+    dataloader = DataLoader(self.dataset_train, batch_size=self.cfg.batch_size, num_workers=self.cfg.num_workers)
+    return dataloader
 
   def val_dataloader(self):
-    # dataloader_val = DataLoader(self.dataset_val, batch_size=self.cfg.batch_size, num_workers=self.cfg.num_workers)
-    # return dataloader_val
-    pass
+    dataloader = DataLoader(self.dataset_val, batch_size=self.cfg.batch_size, num_workers=self.cfg.num_workers)
+    return dataloader

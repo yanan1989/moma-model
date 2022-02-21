@@ -1,6 +1,6 @@
-num_workers: 2
-dir_dataset: /home/alan/data/moma
-
+num_workers: 8
+dir_dataset: /home/alanzluo/data/moma
+batch_size: 32
 mean: [0.45, 0.45, 0.45]
 std: [0.225, 0.225, 0.225]
 fps: 30

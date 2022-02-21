@@ -1,2 +1,10 @@
 defaults:
   - data_module/data_module
+  - module/module
+  - _self_
+
+gpu: [0, 1]
+strategy: ddp
+replace_sampler_ddp: False
+project: slowfast
+dir_log: /home/alanzluo/log

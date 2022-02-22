@@ -1,7 +1,0 @@
-defaults:
-  - data: default
-  - model: default
-  - trainer: default
-  - data/backbone@data: slowfast
-  - data/split@data: sact
-  - model/backbone: slowfast

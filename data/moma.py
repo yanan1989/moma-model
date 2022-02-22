@@ -2,7 +2,9 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule
 from pytorchvideo.data import LabeledVideoDataset, RandomClipSampler, UniformClipSampler
-from torch.utils.data import DistributedSampler, RandomSampler
+from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
+
+from momaapi import MOMA
 
 
 def get_labeled_video_paths(moma, level, split):
@@ -15,7 +17,7 @@ def get_labeled_video_paths(moma, level, split):
     cids_act = [ann_act.cid for ann_act in anns_act]
     labeled_video_paths = [(path, {'label': cid}) for path, cid in zip(paths_act, cids_act)]
 
-  else:  # split == 'sact'
+  else:  # level == 'sact'
     ids_sact = moma.get_ids_sact(split=split)
     paths_sact = moma.get_paths(ids_sact=ids_sact)
     anns_sact = moma.get_anns_sact(ids_sact)
@@ -26,18 +28,17 @@ def get_labeled_video_paths(moma, level, split):
 
 
 class MOMADataModule(LightningDataModule):
-  def __init__(self, dataloader: DictConfig, dataset: DictConfig) -> None:
+  def __init__(self, cfg: DictConfig) -> None:
     super().__init__()
-    self.dataloader = dataloader
-    self.dataset = dataset
+    self.cfg = cfg
 
   def setup(self, stage=None):
-    moma = instantiate(self.dataset.moma)
-    labeled_video_paths_train = get_labeled_video_paths(moma, self.dataset.level, 'train')
-    labeled_video_paths_val = get_labeled_video_paths(moma, self.dataset.level, 'val')
+    moma = MOMA(self.cfg.dir_moma)
+    labeled_video_paths_train = get_labeled_video_paths(moma, self.cfg.level, 'train')
+    labeled_video_paths_val = get_labeled_video_paths(moma, self.cfg.level, 'val')
 
-    clip_sampler_train = RandomClipSampler(clip_duration=self.dataset.T*self.dataset.tau/self.dataset.fps)
-    clip_sampler_val = UniformClipSampler(clip_duration=self.dataset.T*self.dataset.tau/self.dataset.fps)
+    clip_sampler_train = RandomClipSampler(clip_duration=self.cfg.T*self.cfg.tau/self.cfg.fps)
+    clip_sampler_val = UniformClipSampler(clip_duration=self.cfg.T*self.cfg.tau/self.cfg.fps)
 
     # pytorch-lightning does not handle iterable datasets
     # Reference: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#replace-sampler-ddp
@@ -45,8 +46,8 @@ class MOMADataModule(LightningDataModule):
     video_sampler_train = DistributedSampler if use_ddp else RandomSampler
     video_sampler_val = DistributedSampler if use_ddp else RandomSampler
 
-    transform_train = instantiate(self.dataset.transform.train)
-    transform_val = instantiate(self.dataset.transform.val)
+    transform_train = instantiate(self.cfg.transform.train)
+    transform_val = instantiate(self.cfg.transform.val)
 
     dataset_train = LabeledVideoDataset(labeled_video_paths=labeled_video_paths_train,
                                         clip_sampler=clip_sampler_train,
@@ -61,11 +62,12 @@ class MOMADataModule(LightningDataModule):
 
     self.dataset_train = dataset_train
     self.dataset_val = dataset_val
+    print(f'training set size: {dataset_train.num_videos}, validation set size: {dataset_val.num_videos}')
 
   def train_dataloader(self):
-    dataloader = instantiate(self.dataloader, dataset=self.dataset_train)
+    dataloader = DataLoader(self.dataset_train, batch_size=self.cfg.batch_size, num_workers=self.cfg.num_workers)
     return dataloader
 
   def val_dataloader(self):
-    dataloader = instantiate(self.dataloader, dataset=self.dataset_val)
+    dataloader = DataLoader(self.dataset_val, batch_size=self.cfg.batch_size, num_workers=self.cfg.num_workers)
     return dataloader

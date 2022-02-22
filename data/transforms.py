@@ -6,7 +6,7 @@ class SlowFastPackPathway:
   """
   Transform for converting a video clip into a list of 2 clips with
   different temporal granualirity as needed by the SlowFast video
-  model.
+  models.
   For more details, refere to the paper,
   Christoph Feichtenhofer, Haoqi Fan, Jitendra Malik, and Kaiming He.
   "SlowFast networks for video recognition."

@@ -2,6 +2,7 @@ from omegaconf import DictConfig
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.strategies import DDPStrategy
 
 
 def get_trainer(cfg: DictConfig):
@@ -18,11 +19,15 @@ def get_trainer(cfg: DictConfig):
       LearningRateMonitor(logging_interval='step'),
       ModelCheckpoint(monitor='val/acc', mode='max', dirpath=cfg.dir_ckpt)
     ],
+    precision=16,
     num_sanity_val_steps=0,
     log_every_n_steps=10,
     gpus=cfg.gpus,
     **(
-      {'strategy': 'ddp', 'replace_sampler_ddp': False} if len(cfg.gpus) > 1 else {}
+      {
+        'strategy': DDPStrategy(find_unused_parameters=False),
+        'replace_sampler_ddp': False
+       } if len(cfg.gpus) > 1 else {}
     )
   )
 

@@ -1,6 +1,6 @@
 strategy: finetune
 # Reference: https://github.com/facebookresearch/SlowFast/blob/main/configs/SSv2/SLOWFAST_16x8_R50.yaml
-lr: 0.1
+lr: 0.03
 momentum: 0.9
 wd: 1e-4
 warmup_steps: 500

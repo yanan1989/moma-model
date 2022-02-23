@@ -23,7 +23,7 @@ transform:
           size: 224
         - _target_: torchvision.transforms.RandomHorizontalFlip
           p: 0.5
-        - _target_: data.transforms.SlowFastPackPathway
+        - _target_: pytorchvideo_trainer.datamodule.transforms.SlowFastPackPathway
           alpha: 4
   val:
     _target_: pytorchvideo.transforms.ApplyTransformToKey
@@ -41,5 +41,5 @@ transform:
           size: 256
         - _target_: torchvision.transforms.CenterCrop
           size: 256
-        - _target_: data.transforms.SlowFastPackPathway
+        - _target_: pytorchvideo_trainer.datamodule.transforms.SlowFastPackPathway
           alpha: 4

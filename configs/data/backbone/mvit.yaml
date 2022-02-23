@@ -2,25 +2,24 @@ num_crops: 3
 num_clips: 10
 T: 16
 tau: 4
+# Reference: https://github.com/facebookresearch/pytorchvideo/blob/main/pytorchvideo_trainer/pytorchvideo_trainer/conf/datamodule/transforms/kinetics_classification_mvit_16x4.yaml
 transform:
   train:
-  - _target_: data.transforms.RepeatandConverttoList
-    repeat_num: 2
-  - _target_: data.transforms.ApplyTransformToKeyOnList
+    _target_: pytorchvideo.transforms.ApplyTransformToKey
     key: video
     transform:
       _target_: torchvision.transforms.Compose
       transforms:
         - _target_: pytorchvideo.transforms.UniformTemporalSubsample
-          num_samples: 16
+          num_samples: 16  # T
         - _target_: pytorchvideo.transforms.Div255
         - _target_: pytorchvideo.transforms.Permute
-          dims: [1,0,2,3]
+          dims: [1, 0, 2, 3]
         - _target_: pytorchvideo.transforms.rand_augment.RandAugment
           magnitude: 7
           num_layers: 4
         - _target_: pytorchvideo.transforms.Permute
-          dims: [1,0,2,3]
+          dims: [1, 0, 2, 3]
         - _target_: pytorchvideo.transforms.Normalize
           mean: [0.45, 0.45, 0.45]
           std: [0.225, 0.225, 0.225]
@@ -32,7 +31,7 @@ transform:
         - _target_: torchvision.transforms.RandomHorizontalFlip
           p: 0.5
         - _target_: pytorchvideo.transforms.Permute
-          dims: [1,0,2,3]
+          dims: [1, 0, 2, 3]
         - _target_: pytorchvideo_trainer.datamodule.rand_erase_transform.RandomErasing
           probability: 0.25
           mode: 'pixel'
@@ -40,7 +39,7 @@ transform:
           num_splits: 1
           device: 'cpu'
         - _target_: pytorchvideo.transforms.Permute
-          dims: [1,0,2,3]
+          dims: [1, 0, 2, 3]
   val:
     _target_: pytorchvideo.transforms.ApplyTransformToKey
     key: video
@@ -48,7 +47,7 @@ transform:
       _target_: torchvision.transforms.Compose
       transforms:
         - _target_: pytorchvideo.transforms.UniformTemporalSubsample
-          num_samples: 16
+          num_samples: 16  # T
         - _target_: pytorchvideo.transforms.Div255
         - _target_: pytorchvideo.transforms.Normalize
           mean: [0.45, 0.45, 0.45]

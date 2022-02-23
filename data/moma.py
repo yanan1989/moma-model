@@ -2,6 +2,7 @@ from hydra.utils import instantiate
 from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule
 from pytorchvideo.data import LabeledVideoDataset, RandomClipSampler, UniformClipSampler
+import torch
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 
 from momaapi import MOMA
@@ -42,22 +43,24 @@ class MOMADataModule(LightningDataModule):
 
     # pytorch-lightning does not handle iterable datasets
     # Reference: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#replace-sampler-ddp
-    use_ddp = self.trainer._accelerator_connector.strategy == 'ddp'
-    print(f'Strategy: {self.trainer._accelerator_connector.strategy}')
-    video_sampler_train = DistributedSampler if use_ddp else RandomSampler
-    video_sampler_val = DistributedSampler if use_ddp else RandomSampler
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+      video_sampler = DistributedSampler
+      print(f'DDP')
+    else:
+      video_sampler = RandomSampler
+      print('Non-DDP')
 
     transform_train = instantiate(self.cfg.transform.train)
     transform_val = instantiate(self.cfg.transform.val)
 
     dataset_train = LabeledVideoDataset(labeled_video_paths=labeled_video_paths_train,
                                         clip_sampler=clip_sampler_train,
-                                        video_sampler=video_sampler_train,
+                                        video_sampler=video_sampler,
                                         transform=transform_train,
                                         decode_audio=False)
     dataset_val = LabeledVideoDataset(labeled_video_paths=labeled_video_paths_val,
                                       clip_sampler=clip_sampler_val,
-                                      video_sampler=video_sampler_val,
+                                      video_sampler=video_sampler,
                                       transform=transform_val,
                                       decode_audio=False)
 

@@ -7,14 +7,14 @@ from models import VideoClassificationModule
 from trainers import get_trainer
 
 level = 'sact'
-backbone = 'slowfast'
+backbone = 'mvit'
 strategy = 'finetune'
 
 
 @hydra.main(config_path='configs', config_name=f'config_{level}_{backbone}_{strategy}')
 def main(cfg: DictConfig) -> None:
   # print(OmegaConf.to_yaml(cfg))
-  pprint(OmegaConf.to_container(cfg, resolve=True))
+  # pprint(OmegaConf.to_container(cfg, resolve=True))
 
   data = MOMADataModule(cfg.data)
   model = VideoClassificationModule(cfg.model)

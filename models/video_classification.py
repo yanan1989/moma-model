@@ -48,7 +48,7 @@ class VideoClassificationModule(LightningModule):
     acc = self.metric(F.softmax(y_hat, dim=-1), batch['label'])
 
     self.log('train/loss', loss, batch_size=batch_size)
-    self.log('train/acc', acc, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
+    self.log('train/acc', acc, batch_size=batch_size, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
     return loss
 
   def validation_step(self, batch, batch_idx):
@@ -58,7 +58,7 @@ class VideoClassificationModule(LightningModule):
     acc = self.metric(F.softmax(y_hat, dim=-1), batch['label'])
 
     self.log('val/loss', loss, batch_size=batch_size)
-    self.log('val/acc', acc, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
+    self.log('val/acc', acc, batch_size=batch_size, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
     return loss
 
   def configure_optimizers(self):

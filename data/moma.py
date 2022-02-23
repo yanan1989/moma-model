@@ -43,6 +43,7 @@ class MOMADataModule(LightningDataModule):
     # pytorch-lightning does not handle iterable datasets
     # Reference: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#replace-sampler-ddp
     use_ddp = self.trainer._accelerator_connector.strategy == 'ddp'
+    print(f'Strategy: {self.trainer._accelerator_connector.strategy}')
     video_sampler_train = DistributedSampler if use_ddp else RandomSampler
     video_sampler_val = DistributedSampler if use_ddp else RandomSampler
 
@@ -65,9 +66,17 @@ class MOMADataModule(LightningDataModule):
     print(f'training set size: {dataset_train.num_videos}, validation set size: {dataset_val.num_videos}')
 
   def train_dataloader(self):
-    dataloader = DataLoader(self.dataset_train, batch_size=self.cfg.batch_size, num_workers=self.cfg.num_workers)
+    dataloader = DataLoader(self.dataset_train,
+                            batch_size=int(self.cfg.batch_size/len(self.cfg.gpus)),
+                            num_workers=self.cfg.num_workers,
+                            pin_memory=True,
+                            drop_last=True)
     return dataloader
 
   def val_dataloader(self):
-    dataloader = DataLoader(self.dataset_val, batch_size=self.cfg.batch_size, num_workers=self.cfg.num_workers)
+    dataloader = DataLoader(self.dataset_val,
+                            batch_size=int(self.cfg.batch_size/len(self.cfg.gpus)),
+                            num_workers=self.cfg.num_workers,
+                            pin_memory=True,
+                            drop_last=False)
     return dataloader

@@ -2,10 +2,10 @@ from omegaconf import DictConfig
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.plugins import DDPPlugin
 
 
 def get_trainer(cfg: DictConfig):
+  # Reference: https://github.com/facebookresearch/pytorchvideo/blob/main/tutorials/video_classification_example/train.py#L423
   trainer = Trainer(
     max_epochs=cfg.max_epochs,
     logger=WandbLogger(
@@ -18,10 +18,10 @@ def get_trainer(cfg: DictConfig):
       LearningRateMonitor(logging_interval='epoch'),
       ModelCheckpoint(monitor='val/acc', mode='max', dirpath=cfg.dir_ckpt)
     ],
+    num_sanity_val_steps=0,
     gpus=cfg.gpus,
     **(
-      {'strategy': DDPPlugin(find_unused_parameters=False), 'replace_sampler_ddp': False}
-      if len(cfg.gpus) > 1 else {}
+      {'strategy': 'ddp', 'replace_sampler_ddp': False} if len(cfg.gpus) > 1 else {}
     )
   )
 

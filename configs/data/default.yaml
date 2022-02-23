@@ -1,4 +1,5 @@
 num_workers: 8
-batch_size: 32
+batch_size: 64
+gpus: ${trainer.gpus}
 fps: 30
 dir_moma: ${root}/data/moma

@@ -1,7 +1,10 @@
 import torch
+from typing import Any, Callable
 
 
 # Reference: https://github.com/facebookresearch/pytorchvideo/blob/main/pytorchvideo_trainer/pytorchvideo_trainer/datamodule/transforms.py
+
+
 class SlowFastPackPathway:
   """
   Transform for converting a video clip into a list of 2 clips with
@@ -40,3 +43,44 @@ class SlowFastPackPathway:
     )
     frame_list = [slow_pathway, fast_pathway]
     return frame_list
+
+
+class ApplyTransformToKeyOnList:
+  """
+  Applies transform to key of dictionary input wherein input is a list
+  Args:
+      key (str): the dictionary key the transform is applied to
+      transform (callable): the transform that is applied
+  """
+
+  def __init__(self, key: str, transform: Callable) -> None:  # pyre-ignore[24]
+    self._key = key
+    self._transform = transform
+
+  def __call__(
+      self, x: dict[str, list[torch.Tensor]]
+  ) -> dict[str, list[torch.Tensor]]:
+    x[self._key] = [self._transform(a) for a in x[self._key]]
+    return x
+
+
+class RepeatandConverttoList:
+  """
+  An utility transform that repeats each value in a
+  key, value-style minibatch and replaces it with a list of values.
+  Useful for performing multiple augmentations.
+  An example such usecase can be found in
+  `pytorchvideo_trainer/conf/datamodule/transforms/kinetics_classification_mvit_16x4.yaml`
+  Args:
+      repead_num (int): Number of times to repeat each value.
+  """
+
+  def __init__(self, repeat_num: int) -> None:
+    super().__init__()
+    self.repeat_num = repeat_num
+
+  # pyre-ignore[3]
+  def __call__(self, sample_dict: dict[str, Any]) -> dict[str, list[Any]]:
+    for k, v in sample_dict.items():
+      sample_dict[k] = self.repeat_num*[v]
+    return sample_dict

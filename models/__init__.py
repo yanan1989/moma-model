@@ -1,1 +1,1 @@
-from .video_classification import VideoClassificationModule
+from .video_cls import get_model

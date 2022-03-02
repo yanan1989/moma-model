@@ -1,5 +1,0 @@
-name: ${data.level}_${model.backbone}_${model.strategy}_2
-dir_wandb: ${root}/log
-dir_ckpt: ${root}/data/weights/ckpt/${trainer.name}
-gpus: [0, 1, 2, 3, 4, 5, 6, 7]
-num_epochs: ${model.num_epochs}

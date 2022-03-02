@@ -1,1 +1,1 @@
-from .moma import MOMADataModule
+from .moma import get_data

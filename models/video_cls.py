@@ -1,5 +1,3 @@
-from hydra.utils import instantiate
-from omegaconf import DictConfig
 import os
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from pytorch_lightning import LightningModule
@@ -8,23 +6,30 @@ from torch.optim import SGD
 import torch.nn.functional as F
 import torchmetrics
 
+from .backbone import get_mvit_backbone, get_slowfast_backbone
+
 
 def get_module(cfg):
-  module = instantiate(cfg.module, _convert_='all')
-  if cfg.strategy == 'finetune':
-    weights = torch.load(os.path.join(cfg.dir_pretrain, cfg.name_pretrain))['model_state']
-    weights.pop('blocks.6.proj.weight', None)
-    weights.pop('blocks.6.proj.bias', None)
-    weights.pop('head.proj.weight', None)
-    weights.pop('head.proj.bias', None)
-    print(f'{list(set(module.state_dict())-set(weights.keys()))} will be trained from scratch')
-    module.load_state_dict(weights, strict=False)
+  if cfg.level == 'act':
+    num_classes = cfg.num_classes.act
+  elif cfg.level == 'sact':
+    num_classes = cfg.num_classes.sact
+  else:
+    assert cfg.level == 'both'
+    num_classes = (cfg.num_classes.act, cfg.num_classes.sct)
+
+  if cfg.backbone == 'mvit':
+    module = get_mvit_backbone(num_classes, cfg.dir_weights, cfg.strategy == 'finetune')
+  else:
+    assert cfg.backbone == 'slowfast'
+    module = get_slowfast_backbone(num_classes, cfg.dir_weights, cfg.strategy == 'finetune')
   return module
 
 
 class VideoClassificationModule(LightningModule):
-  def __init__(self, cfg: DictConfig) -> None:
+  def __init__(self, moma, cfg) -> None:
     super().__init__()
+    self.moma = moma
     self.cfg = cfg
     self.module = get_module(cfg)
     self.metric = torchmetrics.Accuracy()
@@ -42,6 +47,12 @@ class VideoClassificationModule(LightningModule):
     return self.model(x)
 
   def training_step(self, batch, batch_idx):
+    is_sact = []
+    for video_name, time in zip(batch['video_name'], batch['clip_index']):
+      id_act = video_name.replace('.mp4', '')
+      is_sact.append(self.moma.is_sact(id_act, time))
+    is_sact = torch.Tensor(is_sact).type_as(batch['label'])
+
     batch_size = batch['video'][0].shape[0] if isinstance(batch['video'], list) else batch['video'].shape[0]
     y_hat = self.module(batch['video'])
     loss = F.cross_entropy(y_hat, batch['label'])
@@ -81,7 +92,7 @@ class VideoClassificationModule(LightningModule):
       optimizer_closure,
       on_tpu=False,
       using_native_amp=False,
-      using_lbfgs=False,
+      using_lbfgs=False
   ):
     # linear warmup
     if self.trainer.global_step < self.cfg.warmup_steps:
@@ -90,3 +101,7 @@ class VideoClassificationModule(LightningModule):
         pg['lr'] = lr_scale*self.cfg.lr
 
     optimizer.step(closure=optimizer_closure)
+
+
+def get_model(moma, cfg):
+  return VideoClassificationModule(moma, cfg)

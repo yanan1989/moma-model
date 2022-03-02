@@ -1,24 +1,20 @@
-import hydra
-from omegaconf import DictConfig, OmegaConf
-from pprint import pprint
+from omegaconf import OmegaConf
 
-from data import MOMADataModule
-from models import VideoClassificationModule
+from momaapi import MOMA
+
+from data import get_data
+from models import get_model
 from trainers import get_trainer
 
-level = 'sact'
-backbone = 'mvit'
-strategy = 'finetune'
 
+def main() -> None:
+  cfg = OmegaConf.load('./configs/config.yaml')
+  print(OmegaConf.to_yaml(cfg))
 
-@hydra.main(config_path='configs', config_name=f'config_{level}_{backbone}_{strategy}')
-def main(cfg: DictConfig) -> None:
-  # print(OmegaConf.to_yaml(cfg))
-  # pprint(OmegaConf.to_container(cfg, resolve=True))
-
-  data = MOMADataModule(cfg.data)
-  model = VideoClassificationModule(cfg.model)
-  trainer = get_trainer(cfg.trainer)
+  moma = MOMA(cfg.dir_moma, small=True, toy=True)
+  data = get_data(moma, cfg)
+  model = get_model(moma, cfg)
+  trainer = get_trainer(cfg)
 
   trainer.fit(model, data)
 

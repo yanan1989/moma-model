@@ -1,17 +1,16 @@
-from hydra.utils import instantiate
-from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule
-from pytorchvideo.data import LabeledVideoDataset, RandomClipSampler, UniformClipSampler
+from pytorchvideo.data import LabeledVideoDataset, UniformClipSampler
 import torch
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 
-from momaapi import MOMA
+from .sampler import RandomClipSampler
+from .transforms import get_mvit_transforms, get_slowfast_transforms
 
 
 def get_labeled_video_paths(moma, level, split):
   assert level in ['act', 'sact'] and split in ['train', 'val']
 
-  if split == 'act':
+  if level == 'act':
     ids_act = moma.get_ids_act(split=split)
     paths_act = moma.get_paths(ids_act=ids_act)
     anns_act = moma.get_anns_act(ids_act)
@@ -28,45 +27,52 @@ def get_labeled_video_paths(moma, level, split):
   return labeled_video_paths
 
 
-class MOMADataModule(LightningDataModule):
-  def __init__(self, cfg: DictConfig) -> None:
+def make_datasets(moma, level, cfg):
+  labeled_video_paths_train = get_labeled_video_paths(moma, level, 'train')
+  labeled_video_paths_val = get_labeled_video_paths(moma, level, 'val')
+
+  # pytorch-lightning does not handle iterable datasets
+  # Reference: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#replace-sampler-ddp
+  if torch.distributed.is_available() and torch.distributed.is_initialized():
+    video_sampler = DistributedSampler
+    print(f'DDP')
+  else:
+    video_sampler = RandomSampler
+    print('Non-DDP')
+
+  if cfg.backbone == 'mvit':
+    transform_train, transform_val = get_mvit_transforms(cfg.mvit.T)
+    clip_sampler_train = RandomClipSampler(clip_duration=cfg.mvit.T*cfg.mvit.tau/cfg.fps)
+    clip_sampler_val = UniformClipSampler(clip_duration=cfg.mvit.T*cfg.mvit.tau/cfg.fps)
+  else:
+    assert cfg.backbone == 'slowfast'
+    transform_train, transform_val = get_slowfast_transforms(cfg.slowfast.T, cfg.slowfast.alpha)
+    clip_sampler_train = RandomClipSampler(clip_duration=cfg.slowfast.T*cfg.slowfast.tau/cfg.fps)
+    clip_sampler_val = UniformClipSampler(clip_duration=cfg.slowfast.T*cfg.slowfast.tau/cfg.fps)
+
+  dataset_train = LabeledVideoDataset(labeled_video_paths=labeled_video_paths_train,
+                                      clip_sampler=clip_sampler_train,
+                                      video_sampler=video_sampler,
+                                      transform=transform_train,
+                                      decode_audio=False)
+  dataset_val = LabeledVideoDataset(labeled_video_paths=labeled_video_paths_val,
+                                    clip_sampler=clip_sampler_val,
+                                    video_sampler=video_sampler,
+                                    transform=transform_val,
+                                    decode_audio=False)
+
+  return dataset_train, dataset_val
+  
+
+class MOMAOneLevelDataModule(LightningDataModule):
+  def __init__(self, moma, cfg) -> None:
     super().__init__()
+    self.moma = moma
     self.cfg = cfg
 
   def setup(self, stage=None):
-    moma = MOMA(self.cfg.dir_moma)
-    labeled_video_paths_train = get_labeled_video_paths(moma, self.cfg.level, 'train')
-    labeled_video_paths_val = get_labeled_video_paths(moma, self.cfg.level, 'val')
-
-    clip_sampler_train = RandomClipSampler(clip_duration=self.cfg.T*self.cfg.tau/self.cfg.fps)
-    clip_sampler_val = UniformClipSampler(clip_duration=self.cfg.T*self.cfg.tau/self.cfg.fps)
-
-    # pytorch-lightning does not handle iterable datasets
-    # Reference: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#replace-sampler-ddp
-    if torch.distributed.is_available() and torch.distributed.is_initialized():
-      video_sampler = DistributedSampler
-      print(f'DDP')
-    else:
-      video_sampler = RandomSampler
-      print('Non-DDP')
-
-    transform_train = instantiate(self.cfg.transform.train)
-    transform_val = instantiate(self.cfg.transform.val)
-
-    dataset_train = LabeledVideoDataset(labeled_video_paths=labeled_video_paths_train,
-                                        clip_sampler=clip_sampler_train,
-                                        video_sampler=video_sampler,
-                                        transform=transform_train,
-                                        decode_audio=False)
-    dataset_val = LabeledVideoDataset(labeled_video_paths=labeled_video_paths_val,
-                                      clip_sampler=clip_sampler_val,
-                                      video_sampler=video_sampler,
-                                      transform=transform_val,
-                                      decode_audio=False)
-
-    self.dataset_train = dataset_train
-    self.dataset_val = dataset_val
-    print(f'training set size: {dataset_train.num_videos}, validation set size: {dataset_val.num_videos}')
+    self.dataset_train, self.dataset_val = make_datasets(self.moma, self.cfg.level, self.cfg)
+    print(f'training set size: {self.dataset_train.num_videos}, validation set size: {self.dataset_val.num_videos}')
 
   def train_dataloader(self):
     dataloader = DataLoader(self.dataset_train,
@@ -83,3 +89,50 @@ class MOMADataModule(LightningDataModule):
                             pin_memory=True,
                             drop_last=False)
     return dataloader
+
+
+class MOMATwoLevelDataModule(LightningDataModule):
+  def __init__(self, moma, cfg) -> None:
+    super().__init__()
+    self.moma = moma
+    self.cfg = cfg
+
+  def setup(self, stage=None):
+    self.dataset_act_train, self.dataset_act_val = make_datasets(self.moma, 'act', self.cfg)
+    self.dataset_sact_train, self.dataset_sact_val = make_datasets(self.moma, 'sact', self.cfg)
+    print(f'training set size: ({self.dataset_act_train.num_videos}, {self.dataset_sact_train.num_videos}),'
+          f'validation set size: ({self.dataset_act_val.num_videos}, {self.dataset_sact_val.num_videos})')
+
+  def train_dataloader(self):
+    dataloader_act = DataLoader(self.dataset_act_train,
+                                batch_size=int(self.cfg.batch_size/len(self.cfg.gpus)),
+                                num_workers=self.cfg.num_workers,
+                                pin_memory=True,
+                                drop_last=True)
+    dataloader_sact = DataLoader(self.dataset_sact_train,
+                                 batch_size=int(self.cfg.batch_size/len(self.cfg.gpus)),
+                                 num_workers=self.cfg.num_workers,
+                                 pin_memory=True,
+                                 drop_last=True)
+    return [dataloader_act, dataloader_sact]
+
+  def val_dataloader(self):
+    dataloader_act = DataLoader(self.dataset_act_val,
+                                batch_size=int(self.cfg.batch_size/len(self.cfg.gpus)),
+                                num_workers=self.cfg.num_workers,
+                                pin_memory=True,
+                                drop_last=False)
+    dataloader_sact = DataLoader(self.dataset_sact_val,
+                                 batch_size=int(self.cfg.batch_size/len(self.cfg.gpus)),
+                                 num_workers=self.cfg.num_workers,
+                                 pin_memory=True,
+                                 drop_last=False)
+    return [dataloader_act, dataloader_sact]
+
+
+def get_data(moma, cfg):
+  if cfg.level in ['act', 'sact']:
+    return MOMAOneLevelDataModule(moma, cfg)
+  else:
+    assert cfg.level == 'both'
+    return MOMATwoLevelDataModule(moma, cfg)

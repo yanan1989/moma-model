@@ -1,7 +1,30 @@
 import os
-from pytorchvideo.models.vision_transformers import create_multiscale_vision_transformers
 from pytorchvideo.models.head import create_vit_basic_head
+from pytorchvideo.models.vision_transformers import create_multiscale_vision_transformers
 import torch
+import torch.nn as nn
+
+from .tri_head import TriHead
+
+
+def create_tri_head(in_features, out_features, seq_pool_type, dropout_rate, activation):
+  head1 = create_vit_basic_head(in_features=in_features,
+                                out_features=out_features[0],
+                                seq_pool_type=seq_pool_type,
+                                dropout_rate=dropout_rate,
+                                activation=activation)
+  head2 = create_vit_basic_head(in_features=in_features,
+                                out_features=1,
+                                seq_pool_type=seq_pool_type,
+                                dropout_rate=dropout_rate,
+                                activation=activation)
+  head3 = create_vit_basic_head(in_features=in_features,
+                                out_features=out_features[1],
+                                seq_pool_type=seq_pool_type,
+                                dropout_rate=dropout_rate,
+                                activation=activation)
+  tri_head = TriHead(nn.ModuleList([head1, head2, head3]))
+  return tri_head
 
 
 # Reference: https://github.com/facebookresearch/pytorchvideo/blob/main/pytorchvideo_trainer/pytorchvideo_trainer/conf/module/model/mvit_base_16x4.yaml
@@ -35,6 +58,7 @@ def get_mvit_backbone(num_classes, dir_weights, finetune):
     pool_kv_stride_adaptive=[1, 8, 8],
     pool_kvq_kernel=[3, 3, 3],
     # Head config,
+    head=create_tri_head if isinstance(num_classes, tuple) else create_vit_basic_head,
     head_dropout_rate=0.5,
     head_activation=None,
     head_num_classes=num_classes
@@ -42,10 +66,8 @@ def get_mvit_backbone(num_classes, dir_weights, finetune):
 
   if finetune:
     weights = torch.load(os.path.join(dir_weights, 'pretrain/MVIT_B_16x4.pyth'))['model_state']
-    weights.pop('blocks.6.proj.weight', None)
-    weights.pop('blocks.6.proj.bias', None)
     weights.pop('head.proj.weight', None)
     weights.pop('head.proj.bias', None)
-    print(f'{list(set(module.state_dict())-set(weights.keys()))} will be trained from scratch')
+    print(f'{list(set(module.state_dict().keys())-set(weights.keys()))} will be trained from scratch')
     module.load_state_dict(weights, strict=False)
   return module

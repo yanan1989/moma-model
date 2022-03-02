@@ -8,14 +8,16 @@ warnings.filterwarnings('ignore', '.*upsampling*', )
 
 def get_trainer(cfg):
   # Reference: https://github.com/facebookresearch/pytorchvideo/blob/main/tutorials/video_classification_example/train.py#L423
+  logger = WandbLogger(
+    project='moma',
+    name=f'{cfg.level}_{cfg.backbone}_{cfg.strategy}',
+    log_model='all',
+    save_dir=cfg.dir_wandb
+  )
+  logger.log_hyperparams(cfg)
   trainer = Trainer(
     max_epochs=cfg.num_epochs,
-    logger=WandbLogger(
-      project='moma',
-      name=f'{cfg.level}_{cfg.backbone}_{cfg.strategy}',
-      log_model='all',
-      save_dir=cfg.dir_wandb
-    ),
+    logger=logger,
     callbacks=[
       LearningRateMonitor(logging_interval='step'),
       ModelCheckpoint(monitor='val/acc', mode='max', dirpath=cfg.dir_weights)

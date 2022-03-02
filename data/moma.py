@@ -100,7 +100,7 @@ class MOMATwoLevelDataModule(LightningDataModule):
   def setup(self, stage=None):
     self.dataset_act_train, self.dataset_act_val = make_datasets(self.moma, 'act', self.cfg)
     self.dataset_sact_train, self.dataset_sact_val = make_datasets(self.moma, 'sact', self.cfg)
-    print(f'training set size: ({self.dataset_act_train.num_videos}, {self.dataset_sact_train.num_videos}),'
+    print(f'training set size: ({self.dataset_act_train.num_videos}, {self.dataset_sact_train.num_videos}), '
           f'validation set size: ({self.dataset_act_val.num_videos}, {self.dataset_sact_val.num_videos})')
 
   def train_dataloader(self):

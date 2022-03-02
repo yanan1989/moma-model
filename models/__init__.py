@@ -1,1 +1,1 @@
-from .video_cls import get_model
+from .model import get_model

@@ -1,6 +1,5 @@
-from omegaconf import OmegaConf
-
 from momaapi import MOMA
+from omegaconf import OmegaConf
 
 from data import get_data
 from models import get_model
@@ -11,7 +10,7 @@ def main() -> None:
   cfg = OmegaConf.load('./configs/config.yaml')
   print(OmegaConf.to_yaml(cfg))
 
-  moma = MOMA(cfg.dir_moma, small=True, toy=True)
+  moma = MOMA(cfg.dir_moma, small=True)
   data = get_data(moma, cfg)
   model = get_model(moma, cfg)
   trainer = get_trainer(cfg)

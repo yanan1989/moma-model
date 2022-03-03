@@ -38,8 +38,8 @@ class VideoClsModule(LightningModule):
     top5 = self.top1(pred, batch['label'])
 
     self.log('train/loss', loss, batch_size=batch_size)
-    self.log('train/top1', top1, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
-    self.log('train/top5', top5, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
+    self.log('train/acc@1', top1, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
+    self.log('train/acc@5', top5, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
     return loss
 
   def validation_step(self, batch, batch_idx):
@@ -51,8 +51,8 @@ class VideoClsModule(LightningModule):
     top5 = self.top1(pred, batch['label'])
 
     self.log('val/loss', loss, batch_size=batch_size)
-    self.log('val/top1', top1, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
-    self.log('val/top5', top5, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
+    self.log('val/acc@1', top1, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
+    self.log('val/acc@5', top5, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
     return loss
 
   def configure_optimizers(self):
@@ -122,7 +122,7 @@ class TriHeadVideoClsModule(LightningModule):
     _, _, y_hat_sact = self.module(batch['sact']['video'])
 
     loss_act = F.cross_entropy(y_hat_act, batch['act']['label'])
-    loss_mask = F.binary_cross_entropy_with_logits(y_hat_mask[..., 0], label_mask.float())*2
+    loss_mask = F.binary_cross_entropy_with_logits(y_hat_mask[..., 0], label_mask.float())
     loss_sact = F.cross_entropy(y_hat_sact, batch['sact']['label'])
 
     pred_act = F.softmax(y_hat_act, dim=-1)
@@ -138,10 +138,10 @@ class TriHeadVideoClsModule(LightningModule):
     self.log('train/loss_act', loss_act, batch_size=batch_size, prog_bar=True)
     self.log('train/loss_mask', loss_mask, batch_size=batch_size, prog_bar=True)
     self.log('train/loss_sact', loss_sact, batch_size=batch_size, prog_bar=True)
-    self.log('train/top1_act', top1_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
-    self.log('train/top5_act', top5_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
-    self.log('train/top1_sact', top1_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
-    self.log('train/top5_sact', top5_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
+    self.log('train/acc@1_act', top1_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
+    self.log('train/acc@5_act', top5_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
+    self.log('train/acc@1_sact', top1_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
+    self.log('train/acc@5_sact', top5_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
     self.log('train/acc_mask', acc_mask, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
     return loss_act+loss_mask+loss_sact
 
@@ -158,7 +158,7 @@ class TriHeadVideoClsModule(LightningModule):
       y_hat_act, y_hat_mask, _ = self.module(batch['video'])
 
       loss_act = F.cross_entropy(y_hat_act, batch['label'])
-      loss_mask = F.binary_cross_entropy_with_logits(y_hat_mask[..., 0], label_mask.float())*2
+      loss_mask = F.binary_cross_entropy_with_logits(y_hat_mask[..., 0], label_mask.float())
 
       pred_act = F.softmax(y_hat_act, dim=-1)
       pred_mask = torch.sigmoid(y_hat_mask[..., 0])
@@ -169,8 +169,8 @@ class TriHeadVideoClsModule(LightningModule):
 
       self.log('val/loss_act', loss_act, batch_size=batch_size, prog_bar=True)
       self.log('val/loss_mask', loss_mask, batch_size=batch_size, prog_bar=True)
-      self.log('val/top1_act', top1_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
-      self.log('val/top5_act', top5_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
+      self.log('val/acc@1_act', top1_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
+      self.log('val/acc@5_act', top5_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
       self.log('val/acc_mask', acc_mask, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
 
       return loss_act+loss_mask
@@ -188,8 +188,8 @@ class TriHeadVideoClsModule(LightningModule):
       top5_sact = self.top5(pred_sact, batch['label'])
 
       self.log('val/loss_sact', loss_sact, batch_size=batch_size, prog_bar=True)
-      self.log('val/top1_sact', top1_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
-      self.log('val/top5_sact', top5_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
+      self.log('val/acc@1_sact', top1_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
+      self.log('val/acc@5_sact', top5_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
 
       return loss_sact
 

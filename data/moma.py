@@ -44,12 +44,12 @@ def make_datasets(moma, level, cfg):
   if cfg.backbone == 'mvit':
     transform_train, transform_val = get_mvit_transforms(cfg.mvit.T)
     clip_sampler_train = RandomClipSampler(clip_duration=cfg.mvit.T*cfg.mvit.tau/cfg.fps)
-    clip_sampler_val = RandomClipSampler(clip_duration=cfg.mvit.T*cfg.mvit.tau/cfg.fps)
+    clip_sampler_val = UniformClipSampler(clip_duration=cfg.mvit.T*cfg.mvit.tau/cfg.fps)
   else:
     assert cfg.backbone == 'slowfast'
     transform_train, transform_val = get_slowfast_transforms(cfg.slowfast.T, cfg.slowfast.alpha)
     clip_sampler_train = RandomClipSampler(clip_duration=cfg.slowfast.T*cfg.slowfast.tau/cfg.fps)
-    clip_sampler_val = RandomClipSampler(clip_duration=cfg.slowfast.T*cfg.slowfast.tau/cfg.fps)
+    clip_sampler_val = UniformClipSampler(clip_duration=cfg.slowfast.T*cfg.slowfast.tau/cfg.fps)
 
   # monkey patching
   LabeledVideoDataset.__next__ = monkey

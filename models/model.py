@@ -110,7 +110,8 @@ class TriHeadVideoClsModule(LightningModule):
     return self.model(x)
 
   def training_step(self, batch, batch_idx):
-    batch_size = batch['act']['video'][0].shape[0] if isinstance(batch['act']['video'], list) else batch['act']['video'].shape[0]
+    batch_size = batch['act']['video'][0].shape[0] if isinstance(batch['act']['video'], list) \
+                                                   else batch['act']['video'].shape[0]
 
     label_mask = []
     for video_name, time in zip(batch['act']['video_name'], batch['act']['time']):
@@ -146,6 +147,7 @@ class TriHeadVideoClsModule(LightningModule):
     return loss_act+loss_mask+loss_sact
 
   def validation_step(self, batch, batch_idx, dataloader_idx):
+    print(f"validating: {batch['video_name']} ({batch_idx}, {dataloader_idx})\n")
     batch_size = batch['video'][0].shape[0] if isinstance(batch['video'], list) else batch['video'].shape[0]
 
     if dataloader_idx == 0:  # act

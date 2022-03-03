@@ -76,9 +76,9 @@ class MOMAOneLevelDataModule(LightningDataModule):
 
   def setup(self, stage=None):
     self.dataset_train, self.dataset_val, is_ddp = make_datasets(self.moma, self.cfg.level, self.cfg)
-    self.log(f'training set size: {self.dataset_train.num_videos}, '
-             f'validation set size: {self.dataset_val.num_videos}')
-    self.log(f'is_ddp: {is_ddp}')
+    print(f'training set size: {self.dataset_train.num_videos}, '
+          f'validation set size: {self.dataset_val.num_videos}')
+    print(f'is_ddp: {is_ddp}')
 
   def train_dataloader(self):
     dataloader = DataLoader(self.dataset_train,
@@ -106,11 +106,11 @@ class MOMATwoLevelDataModule(LightningDataModule):
   def setup(self, stage=None):
     self.dataset_act_train, self.dataset_act_val, is_ddp_act = make_datasets(self.moma, 'act', self.cfg)
     self.dataset_sact_train, self.dataset_sact_val, is_ddp_sact = make_datasets(self.moma, 'sact', self.cfg)
-    self.log(f'training set size: [act={self.dataset_act_train.num_videos}, '
-             f'sact={self.dataset_sact_train.num_videos}], '
-             f'validation set size: [act={self.dataset_act_val.num_videos}, '
-             f'sact={self.dataset_sact_val.num_videos}]')
-    self.log(f'is_ddp: {is_ddp_act and is_ddp_sact}')
+    print(f'training set size: [act={self.dataset_act_train.num_videos}, '
+          f'sact={self.dataset_sact_train.num_videos}], '
+          f'validation set size: [act={self.dataset_act_val.num_videos}, '
+          f'sact={self.dataset_sact_val.num_videos}]')
+    print(f'is_ddp: {is_ddp_act and is_ddp_sact}')
 
   def train_dataloader(self):
     dataloader_act = DataLoader(self.dataset_act_train,
@@ -136,6 +136,7 @@ class MOMATwoLevelDataModule(LightningDataModule):
                                  num_workers=self.cfg.num_workers,
                                  pin_memory=True,
                                  drop_last=False)
+
     return [dataloader_act, dataloader_sact]
 
 

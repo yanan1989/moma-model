@@ -24,8 +24,8 @@ def get_trainer(cfg):
       ModelCheckpoint(monitor='val/acc', mode='max', dirpath=cfg.dir_weights)
     ],
     precision=16,
-    num_sanity_val_steps=0,  # todo
-    log_every_n_steps=1,  # todo
+    num_sanity_val_steps=0,
+    log_every_n_steps=1,
     gpus=cfg.gpus,
     **(
       {

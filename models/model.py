@@ -110,6 +110,7 @@ class TriHeadVideoClsModule(LightningModule):
     return self.model(x)
 
   def training_step(self, batch, batch_idx):
+    print(f"\ntraining: {batch_idx}\n")
     batch_size = batch['act']['video'][0].shape[0] if isinstance(batch['act']['video'], list) \
                                                    else batch['act']['video'].shape[0]
 
@@ -132,22 +133,22 @@ class TriHeadVideoClsModule(LightningModule):
 
     top1_act = self.top1(pred_act, batch['act']['label'])
     top5_act = self.top5(pred_act, batch['act']['label'])
+    acc_mask = self.acc(pred_mask, label_mask)
     top1_sact = self.top1(pred_sact, batch['sact']['label'])
     top5_sact = self.top5(pred_sact, batch['sact']['label'])
-    acc_mask = self.acc(pred_mask, label_mask)
 
     self.log('train/loss_act', loss_act, batch_size=batch_size, prog_bar=True)
     self.log('train/loss_mask', loss_mask, batch_size=batch_size, prog_bar=True)
     self.log('train/loss_sact', loss_sact, batch_size=batch_size, prog_bar=True)
     self.log('train/acc@1_act', top1_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
     self.log('train/acc@5_act', top5_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
+    self.log('train/acc_mask', acc_mask, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
     self.log('train/acc@1_sact', top1_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
     self.log('train/acc@5_sact', top5_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
-    self.log('train/acc_mask', acc_mask, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
     return loss_act+loss_mask+loss_sact
 
   def validation_step(self, batch, batch_idx, dataloader_idx):
-    print(f"validating: {batch['video_name']} ({batch_idx}, {dataloader_idx})\n")
+    print(f"\nvalidating: {batch['video_name']} ({batch_idx}, {dataloader_idx})\n")
     batch_size = batch['video'][0].shape[0] if isinstance(batch['video'], list) else batch['video'].shape[0]
 
     if dataloader_idx == 0:  # act

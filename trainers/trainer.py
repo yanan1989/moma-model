@@ -1,9 +1,10 @@
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.strategies import DDPStrategy
 
 import warnings
-warnings.filterwarnings('ignore', '.*upsampling*', )
+warnings.filterwarnings('ignore', '.*upsampling*')
 
 
 def get_trainer(cfg):
@@ -28,8 +29,8 @@ def get_trainer(cfg):
     gpus=cfg.gpus,
     **(
       {
-        'strategy': 'ddp',
-        'replace_sampler_ddp': False
+        'replace_sampler_ddp': False,
+        'strategy': DDPStrategy(find_unused_parameters=False)
        } if len(cfg.gpus) > 1 else {}
     )
   )

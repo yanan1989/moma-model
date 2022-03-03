@@ -110,29 +110,29 @@ class TriHeadVideoClsModule(LightningModule):
     return self.model(x)
 
   def training_step(self, batch, batch_idx):
-    batch_size = batch[0]['video'][0].shape[0] if isinstance(batch[0]['video'], list) else batch[0]['video'].shape[0]
+    batch_size = batch['act']['video'][0].shape[0] if isinstance(batch['act']['video'], list) else batch['act']['video'].shape[0]
 
     label_mask = []
-    for video_name, time in zip(batch[0]['video_name'], batch[0]['clip_index']):
+    for video_name, time in zip(batch['act']['video_name'], batch['act']['time']):
       id_act = video_name.replace('.mp4', '')
       label_mask.append(self.moma.is_sact(id_act, time))
-    label_mask = torch.Tensor(label_mask).type_as(batch[0]['label'])
+    label_mask = torch.Tensor(label_mask).type_as(batch['act']['label'])
 
-    y_hat_act, y_hat_mask, _ = self.module(batch[0]['video'])
-    _, _, y_hat_sact = self.module(batch[1]['video'])
+    y_hat_act, y_hat_mask, _ = self.module(batch['act']['video'])
+    _, _, y_hat_sact = self.module(batch['sact']['video'])
 
-    loss_act = F.cross_entropy(y_hat_act, batch[0]['label'])
+    loss_act = F.cross_entropy(y_hat_act, batch['act']['label'])
     loss_mask = F.binary_cross_entropy_with_logits(y_hat_mask[..., 0], label_mask.float())*2
-    loss_sact = F.cross_entropy(y_hat_sact, batch[1]['label'])
+    loss_sact = F.cross_entropy(y_hat_sact, batch['sact']['label'])
 
     pred_act = F.softmax(y_hat_act, dim=-1)
     pred_mask = torch.sigmoid(y_hat_mask[..., 0])
     pred_sact = F.softmax(y_hat_sact, dim=-1)
 
-    top1_act = self.top1(pred_act, batch[0]['label'])
-    top5_act = self.top5(pred_act, batch[0]['label'])
-    top1_sact = self.top1(pred_sact, batch[1]['label'])
-    top5_sact = self.top5(pred_sact, batch[1]['label'])
+    top1_act = self.top1(pred_act, batch['act']['label'])
+    top5_act = self.top5(pred_act, batch['act']['label'])
+    top1_sact = self.top1(pred_sact, batch['sact']['label'])
+    top5_sact = self.top5(pred_sact, batch['sact']['label'])
     acc_mask = self.acc(pred_mask, label_mask)
 
     self.log('train/loss_act', loss_act, batch_size=batch_size, prog_bar=True)
@@ -145,41 +145,53 @@ class TriHeadVideoClsModule(LightningModule):
     self.log('train/acc_mask', acc_mask, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=False)
     return loss_act+loss_mask+loss_sact
 
-  def validation_step(self, batch, batch_idx):
-    batch_size = batch[0]['video'][0].shape[0] if isinstance(batch[0]['video'], list) else batch[0]['video'].shape[0]
+  def validation_step(self, batch, batch_idx, dataloader_idx):
+    batch_size = batch['video'][0].shape[0] if isinstance(batch['video'], list) else batch['video'].shape[0]
 
-    label_mask = []
-    for video_name, time in zip(batch[0]['video_name'], batch[0]['clip_index']):
-      id_act = video_name.replace('.mp4', '')
-      label_mask.append(self.moma.is_sact(id_act, time))
-    label_mask = torch.Tensor(label_mask).type_as(batch[0]['label'])
+    if dataloader_idx == 0:  # act
+      label_mask = []
+      for video_name, time in zip(batch['video_name'], batch['time']):
+        id_act = video_name.replace('.mp4', '')
+        label_mask.append(self.moma.is_sact(id_act, time))
+      label_mask = torch.Tensor(label_mask).type_as(batch['label'])
 
-    y_hat_act, y_hat_mask, _ = self.module(batch[0]['video'])
-    _, _, y_hat_sact = self.module(batch[1]['video'])
+      y_hat_act, y_hat_mask, _ = self.module(batch['video'])
 
-    loss_act = F.cross_entropy(y_hat_act, batch[0]['label'])
-    loss_mask = F.binary_cross_entropy_with_logits(y_hat_mask[..., 0], label_mask.float())*2
-    loss_sact = F.cross_entropy(y_hat_sact, batch[1]['label'])
+      loss_act = F.cross_entropy(y_hat_act, batch['label'])
+      loss_mask = F.binary_cross_entropy_with_logits(y_hat_mask[..., 0], label_mask.float())*2
 
-    pred_act = F.softmax(y_hat_act, dim=-1)
-    pred_mask = torch.sigmoid(y_hat_mask[..., 0])
-    pred_sact = F.softmax(y_hat_sact, dim=-1)
+      pred_act = F.softmax(y_hat_act, dim=-1)
+      pred_mask = torch.sigmoid(y_hat_mask[..., 0])
 
-    top1_act = self.top1(pred_act, batch[0]['label'])
-    top5_act = self.top5(pred_act, batch[0]['label'])
-    top1_sact = self.top1(pred_sact, batch[1]['label'])
-    top5_sact = self.top5(pred_sact, batch[1]['label'])
-    acc_mask = self.acc(pred_mask, label_mask)
+      top1_act = self.top1(pred_act, batch['label'])
+      top5_act = self.top5(pred_act, batch['label'])
+      acc_mask = self.acc(pred_mask, label_mask)
 
-    self.log('val/loss_act', loss_act, batch_size=batch_size, prog_bar=True)
-    self.log('val/loss_mask', loss_mask, batch_size=batch_size, prog_bar=True)
-    self.log('val/loss_sact', loss_sact, batch_size=batch_size, prog_bar=True)
-    self.log('val/top1_act', top1_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
-    self.log('val/top5_act', top5_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
-    self.log('val/top1_sact', top1_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
-    self.log('val/top5_sact', top5_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
-    self.log('val/acc_mask', acc_mask, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
-    return loss_act+loss_mask+loss_sact
+      self.log('val/loss_act', loss_act, batch_size=batch_size, prog_bar=True)
+      self.log('val/loss_mask', loss_mask, batch_size=batch_size, prog_bar=True)
+      self.log('val/top1_act', top1_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
+      self.log('val/top5_act', top5_act, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
+      self.log('val/acc_mask', acc_mask, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
+
+      return loss_act+loss_mask
+
+    else:
+      assert dataloader_idx == 1
+
+      _, _, y_hat_sact = self.module(batch['video'])
+
+      loss_sact = F.cross_entropy(y_hat_sact, batch['label'])
+
+      pred_sact = F.softmax(y_hat_sact, dim=-1)
+
+      top1_sact = self.top1(pred_sact, batch['label'])
+      top5_sact = self.top5(pred_sact, batch['label'])
+
+      self.log('val/loss_sact', loss_sact, batch_size=batch_size, prog_bar=True)
+      self.log('val/top1_sact', top1_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
+      self.log('val/top5_sact', top5_sact, batch_size=batch_size, on_epoch=True, prog_bar=True, sync_dist=True)
+
+      return loss_sact
 
   def configure_optimizers(self):
     optimizer = SGD(

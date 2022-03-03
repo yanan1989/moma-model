@@ -3,11 +3,11 @@ dir_wandb: /home/alanzluo/log
 dir_weights: /home/alanzluo/data/weights
 
 level: both
-backbone: slowfast
+backbone: mvit
 strategy: finetune
 
 gpus: [0, 1, 2, 3, 4, 5, 6, 7]
-num_workers: 4
+num_workers: 3
 
 batch_size: 64
 fps: 30

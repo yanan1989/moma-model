@@ -8,7 +8,7 @@ from trainers import get_trainer
 
 def main() -> None:
   cfg = OmegaConf.load('./configs/config.yaml')
-  print(OmegaConf.to_yaml(cfg))
+  # print(OmegaConf.to_yaml(cfg))
 
   moma = MOMA(cfg.dir_moma, small=True)
   data = get_data(moma, cfg)

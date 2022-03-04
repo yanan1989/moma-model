@@ -109,7 +109,8 @@ class TriHeadVideoClsModule(LightningModule):
       self.log('val/sact/loss', loss_sact, batch_size=batch_size, sync_dist=True, add_dataloader_idx=False, prog_bar=False)
       self.log('val/sact/acc1', top1_sact, batch_size=batch_size, sync_dist=True, add_dataloader_idx=False, prog_bar=True)
       self.log('val/sact/acc5', top5_sact, batch_size=batch_size, sync_dist=True, add_dataloader_idx=False, prog_bar=False)
-      self.log('val/acc', top1_sact, batch_size=batch_size, sync_dist=True, add_dataloader_idx=False, prog_bar=False)
+      # for checkpoint saving
+      self.log('val/acc1', top1_sact, batch_size=batch_size, sync_dist=True, add_dataloader_idx=False, prog_bar=False)
 
   def configure_optimizers(self):
     optimizer = SGD(

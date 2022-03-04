@@ -26,8 +26,9 @@ def get_trainer(cfg):
     logger=logger,
     callbacks=[
       LearningRateMonitor(logging_interval='step'),
-      ModelCheckpoint(monitor='val/acc', mode='max', dirpath=os.path.join(cfg.dir_weights, f'ckpt/{name}'))
+      ModelCheckpoint(monitor='val/acc1', mode='max', dirpath=os.path.join(cfg.dir_weights, f'ckpt/{name}'))
     ],
+    check_val_every_n_epoch=5,
     precision=16,
     log_every_n_steps=10,
     gpus=cfg.gpus,

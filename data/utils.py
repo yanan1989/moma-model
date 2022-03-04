@@ -159,8 +159,6 @@ def make_datasets(moma, level, cfg):
   labeled_video_paths_train = get_labeled_video_paths(moma, level, 'train')
   labeled_video_paths_val = get_labeled_video_paths(moma, level, 'val')
 
-  is_ddp = False
-
   # pytorch-lightning does not handle iterable datasets
   # Reference: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#replace-sampler-ddp
   if torch.distributed.is_available() and torch.distributed.is_initialized():
@@ -168,6 +166,7 @@ def make_datasets(moma, level, cfg):
     is_ddp = True
   else:
     video_sampler = RandomSampler
+    is_ddp = False
 
   if cfg.backbone == 'mvit':
     transform_train, transform_val = get_mvit_transforms(cfg.mvit.T)

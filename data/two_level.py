@@ -43,5 +43,4 @@ class MOMATwoLevelDataModule(LightningDataModule):
                                  num_workers=self.cfg.num_workers,
                                  pin_memory=True,
                                  drop_last=False)
-
     return [dataloader_act, dataloader_sact]

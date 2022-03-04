@@ -1,10 +1,13 @@
+from pytorchvideo.data import LabeledVideoDataset, RandomClipSampler, UniformClipSampler
 from pytorchvideo.data.utils import MultiProcessSampler
+import torch
+from torch.utils.data import DistributedSampler, RandomSampler
+
+from .transforms import get_mvit_transforms, get_slowfast_transforms
 
 
 # Reference: https://github.com/facebookresearch/pytorchvideo/blob/main/pytorchvideo/data/labeled_video_dataset.py
-
-
-def monkey(self) -> dict:
+def __next__(self) -> dict:
   """
   Retrieves the next clip based on the clip sampling strategy and video sampler.
   Returns:
@@ -130,3 +133,64 @@ def monkey(self) -> dict:
     raise RuntimeError(
       f"Failed to load video after {self._MAX_CONSECUTIVE_FAILURES} retries."
     )
+
+
+def get_labeled_video_paths(moma, level, split):
+  assert level in ['act', 'sact'] and split in ['train', 'val']
+
+  if level == 'act':
+    ids_act = moma.get_ids_act(split=split)
+    paths_act = moma.get_paths(ids_act=ids_act)
+    anns_act = moma.get_anns_act(ids_act)
+    cids_act = [ann_act.cid for ann_act in anns_act]
+    labeled_video_paths = [(path, {'label': cid}) for path, cid in zip(paths_act, cids_act)]
+
+  else:  # level == 'sact'
+    ids_sact = moma.get_ids_sact(split=split)
+    paths_sact = moma.get_paths(ids_sact=ids_sact)
+    anns_sact = moma.get_anns_sact(ids_sact)
+    cids_sact = [ann_sact.cid for ann_sact in anns_sact]
+    labeled_video_paths = [(path, {'label': cid}) for path, cid in zip(paths_sact, cids_sact)]
+
+  return labeled_video_paths
+
+
+def make_datasets(moma, level, cfg):
+  labeled_video_paths_train = get_labeled_video_paths(moma, level, 'train')
+  labeled_video_paths_val = get_labeled_video_paths(moma, level, 'val')
+
+  is_ddp = False
+
+  # pytorch-lightning does not handle iterable datasets
+  # Reference: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#replace-sampler-ddp
+  if torch.distributed.is_available() and torch.distributed.is_initialized():
+    video_sampler = DistributedSampler
+    is_ddp = True
+  else:
+    video_sampler = RandomSampler
+
+  if cfg.backbone == 'mvit':
+    transform_train, transform_val = get_mvit_transforms(cfg.mvit.T)
+    clip_sampler_train = RandomClipSampler(clip_duration=cfg.mvit.T*cfg.mvit.tau/cfg.fps)
+    clip_sampler_val = UniformClipSampler(clip_duration=cfg.mvit.T*cfg.mvit.tau/cfg.fps)
+  else:
+    assert cfg.backbone == 'slowfast'
+    transform_train, transform_val = get_slowfast_transforms(cfg.slowfast.T, cfg.slowfast.alpha)
+    clip_sampler_train = RandomClipSampler(clip_duration=cfg.slowfast.T*cfg.slowfast.tau/cfg.fps)
+    clip_sampler_val = UniformClipSampler(clip_duration=cfg.slowfast.T*cfg.slowfast.tau/cfg.fps)
+
+  # monkey patching
+  LabeledVideoDataset.__next__ = __next__
+
+  dataset_train = LabeledVideoDataset(labeled_video_paths=labeled_video_paths_train,
+                                      clip_sampler=clip_sampler_train,
+                                      video_sampler=video_sampler,
+                                      transform=transform_train,
+                                      decode_audio=False)
+  dataset_val = LabeledVideoDataset(labeled_video_paths=labeled_video_paths_val,
+                                    clip_sampler=clip_sampler_val,
+                                    video_sampler=video_sampler,
+                                    transform=transform_val,
+                                    decode_audio=False)
+
+  return dataset_train, dataset_val, is_ddp

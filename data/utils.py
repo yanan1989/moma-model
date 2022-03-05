@@ -1,9 +1,9 @@
-from pytorchvideo.data import LabeledVideoDataset, RandomClipSampler, UniformClipSampler
+from pytorchvideo.data import LabeledVideoDataset, make_clip_sampler
 from pytorchvideo.data.utils import MultiProcessSampler
 import torch
 from torch.utils.data import DistributedSampler, RandomSampler
 
-from .transforms import get_mvit_transforms, get_slowfast_transforms
+from .transforms import get_mvit_transforms, get_slowfast_transforms, get_s3d_transforms
 
 
 # Reference: https://github.com/facebookresearch/pytorchvideo/blob/main/pytorchvideo/data/labeled_video_dataset.py
@@ -136,17 +136,17 @@ def __next__(self) -> dict:
 
 
 def get_labeled_video_paths(moma, level, split):
-  assert level in ['act', 'sact'] and split in ['train', 'val']
+  assert level in ['act', 'sact'] and split in ['train', 'val', 'test']
 
   if level == 'act':
-    ids_act = moma.get_ids_act(split=split)
+    ids_act = moma.get_ids_act(split='test' if split == 'val' else split)
     paths_act = moma.get_paths(ids_act=ids_act)
     anns_act = moma.get_anns_act(ids_act)
     cids_act = [ann_act.cid for ann_act in anns_act]
     labeled_video_paths = [(path, {'label': cid}) for path, cid in zip(paths_act, cids_act)]
 
   else:  # level == 'sact'
-    ids_sact = moma.get_ids_sact(split=split)
+    ids_sact = moma.get_ids_sact(split='test' if split == 'val' else split)
     paths_sact = moma.get_paths(ids_sact=ids_sact)
     anns_sact = moma.get_anns_sact(ids_sact)
     cids_sact = [ann_sact.cid for ann_sact in anns_sact]
@@ -158,28 +158,31 @@ def get_labeled_video_paths(moma, level, split):
 def make_datasets(moma, level, cfg):
   labeled_video_paths_train = get_labeled_video_paths(moma, level, 'train')
   labeled_video_paths_val = get_labeled_video_paths(moma, level, 'val')
+  labeled_video_paths_test = get_labeled_video_paths(moma, level, 'test')
 
   # pytorch-lightning does not handle iterable datasets
   # Reference: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#replace-sampler-ddp
   if torch.distributed.is_available() and torch.distributed.is_initialized():
     video_sampler = DistributedSampler
-    is_ddp = True
   else:
     video_sampler = RandomSampler
-    is_ddp = False
 
   if cfg.backbone == 'mvit':
-    transform_train, transform_val = get_mvit_transforms(cfg.mvit.T)
-    clip_sampler_train = RandomClipSampler(clip_duration=cfg.mvit.T*cfg.mvit.tau/cfg.fps)
-    clip_sampler_val = UniformClipSampler(clip_duration=cfg.mvit.T*cfg.mvit.tau/cfg.fps)
+    transform_train, transform_val, transform_test = get_mvit_transforms(cfg.T[cfg.backbone])
+  elif cfg.backbone == 'slowfast':
+    transform_train, transform_val, transform_test = get_slowfast_transforms(cfg.T[cfg.backbone], cfg.alpha)
   else:
-    assert cfg.backbone == 'slowfast'
-    transform_train, transform_val = get_slowfast_transforms(cfg.slowfast.T, cfg.slowfast.alpha)
-    clip_sampler_train = RandomClipSampler(clip_duration=cfg.slowfast.T*cfg.slowfast.tau/cfg.fps)
-    clip_sampler_val = UniformClipSampler(clip_duration=cfg.slowfast.T*cfg.slowfast.tau/cfg.fps)
+    assert cfg.backbone == 's3d'
+    transform_train, transform_val, transform_test = get_s3d_transforms(cfg.T[cfg.backbone])
+
+  clip_sampler_train = make_clip_sampler('random', cfg.T[cfg.backbone]*cfg.tau[cfg.backbone]/cfg.fps)
+  clip_sampler_val = make_clip_sampler('constant_clips_per_video', cfg.T[cfg.backbone]*cfg.tau[cfg.backbone]/cfg.fps,
+                                       3, 1)
+  clip_sampler_test = make_clip_sampler('constant_clips_per_video', cfg.T[cfg.backbone]*cfg.tau[cfg.backbone]/cfg.fps,
+                                        cfg.num_clips, cfg.num_crops)
 
   # monkey patching
-  LabeledVideoDataset.__next__ = __next__
+  # LabeledVideoDataset.__next__ = __next__
 
   dataset_train = LabeledVideoDataset(labeled_video_paths=labeled_video_paths_train,
                                       clip_sampler=clip_sampler_train,
@@ -191,5 +194,10 @@ def make_datasets(moma, level, cfg):
                                     video_sampler=video_sampler,
                                     transform=transform_val,
                                     decode_audio=False)
+  dataset_test = LabeledVideoDataset(labeled_video_paths=labeled_video_paths_test,
+                                     clip_sampler=clip_sampler_test,
+                                     video_sampler=video_sampler,
+                                     transform=transform_test,
+                                     decode_audio=False)
 
-  return dataset_train, dataset_val, is_ddp
+  return dataset_train, dataset_val, dataset_test

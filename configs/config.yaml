@@ -2,9 +2,13 @@ dir_moma: /home/alanzluo/data/moma
 dir_wandb: /home/alanzluo/log
 dir_weights: /home/alanzluo/data/weights
 
-level: both
+levels: [act, sact]
 backbone: mvit
 strategy: finetune
+
+num_classes:
+  act: 20
+  sact: 91
 
 gpus: [0, 1, 2, 3, 4, 5, 6, 7]
 num_workers: 3
@@ -17,15 +21,15 @@ wd: 1e-4
 warmup_steps: 500
 num_epochs: 50
 
-num_classes_act: 20
-num_classes_sact: 91
-
+# sampling
 num_crops: 3
 num_clips: 10
-
-mvit:
-  T: 16
-  tau: 4
-slowfast:
-  T: 8
-  tau: 8
+T:
+  mvit: 16
+  slowfast: 8
+  s3d: 30
+tau:
+  mvit: 4
+  slowfast: 8
+  s3d: 1
+alpha: 4

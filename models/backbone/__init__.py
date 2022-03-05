@@ -1,2 +1,1 @@
-from .mvit import get_mvit_backbone
-from .slowfast import get_slowfast_backbone
+from .get_backbone import get_backbone

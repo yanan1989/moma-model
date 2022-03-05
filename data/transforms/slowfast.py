@@ -45,3 +45,19 @@ def get_slowfast_transforms(T=8, alpha=4):
       ]
     )
   )
+
+  transform_test = ApplyTransformToKey(
+    key='video',
+    transform=Compose(
+      transforms=[
+        UniformTemporalSubsample(num_samples=T*alpha),
+        Div255(),
+        Normalize(mean=[0.45, 0.45, 0.45], std=[0.225, 0.225, 0.225]),
+        ShortSideScale(size=256),
+        CenterCrop(256),
+        SlowFastPackPathway(alpha=alpha)
+      ]
+    )
+  )
+
+  return transform_train, transform_val, transform_test

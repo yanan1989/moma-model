@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore', '.*upsampling*')
 
 
 def get_trainer(cfg):
-  name = f"{'_'.join(cfg.levels)}_{cfg.backbone}_{cfg.strategy}"
+  name = f"{'_'.join(cfg.levels)}_{cfg.backbone}_{cfg.strategy}"+('_fs' if cfg.few_shot else '')
   logger = WandbLogger(
     project='moma',
     name=name,
@@ -30,7 +30,7 @@ def get_trainer(cfg):
                       save_last=True,
                       dirpath=os.path.join(cfg.dir_weights, f'ckpt/{name}'))
     ],
-    check_val_every_n_epoch=25,
+    check_val_every_n_epoch=1000000,
     precision=16,
     log_every_n_steps=10,
     gpus=cfg.gpus,

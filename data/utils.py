@@ -135,30 +135,35 @@ def __next__(self) -> dict:
     )
 
 
-def get_labeled_video_paths(moma, level, split):
+def get_labeled_video_paths(moma, level, split, few_shot):
   assert level in ['act', 'sact'] and split in ['train', 'val', 'test']
+  split = 'test' if split == 'val' else split
 
   if level == 'act':
-    ids_act = moma.get_ids_act(split='test' if split == 'val' else split)
+    ids_act = moma.get_ids_act(split=split)
     paths_act = moma.get_paths(ids_act=ids_act)
     anns_act = moma.get_anns_act(ids_act)
     cids_act = [ann_act.cid for ann_act in anns_act]
+    if few_shot:
+      cids_act = [moma.cid_to_cid_fs(cid_act, level, split) for cid_act in cids_act]
     labeled_video_paths = [(path, {'label': cid}) for path, cid in zip(paths_act, cids_act)]
 
   else:  # level == 'sact'
-    ids_sact = moma.get_ids_sact(split='test' if split == 'val' else split)
+    ids_sact = moma.get_ids_sact(split=split)
     paths_sact = moma.get_paths(ids_sact=ids_sact)
     anns_sact = moma.get_anns_sact(ids_sact)
     cids_sact = [ann_sact.cid for ann_sact in anns_sact]
+    if few_shot:
+      cids_sact = [moma.cid_to_cid_fs(cid_sact, level, split) for cid_sact in cids_sact]
     labeled_video_paths = [(path, {'label': cid}) for path, cid in zip(paths_sact, cids_sact)]
 
   return labeled_video_paths
 
 
 def make_datasets(moma, level, cfg):
-  labeled_video_paths_train = get_labeled_video_paths(moma, level, 'train')
-  labeled_video_paths_val = get_labeled_video_paths(moma, level, 'val')
-  labeled_video_paths_test = get_labeled_video_paths(moma, level, 'test')
+  labeled_video_paths_train = get_labeled_video_paths(moma, level, 'train', cfg.few_shot)
+  labeled_video_paths_val = get_labeled_video_paths(moma, level, 'val', cfg.few_shot)
+  labeled_video_paths_test = get_labeled_video_paths(moma, level, 'test', cfg.few_shot)
 
   # pytorch-lightning does not handle iterable datasets
   # Reference: https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#replace-sampler-ddp

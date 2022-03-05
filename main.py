@@ -6,11 +6,11 @@ from models import get_model
 from trainers import get_trainer
 
 
-def main() -> None:
+def main():
   cfg = OmegaConf.load('./configs/config.yaml')
   # print(OmegaConf.to_yaml(cfg))
 
-  moma = MOMA(cfg.dir_moma)
+  moma = MOMA(cfg.dir_moma, few_shot=True)
   data = get_data(moma, cfg)
   model = get_model(moma, cfg)
   trainer = get_trainer(cfg)

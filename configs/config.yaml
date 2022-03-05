@@ -5,10 +5,21 @@ dir_weights: /home/alanzluo/data/weights
 levels: [act, sact]
 backbone: mvit
 strategy: finetune
+few_shot: True
+
+#num_classes:
+#  act: 20
+#  sact: 91
 
 num_classes:
-  act: 20
-  sact: 91
+  act: 15
+  sact: 69
+
+#num_classes_fs:
+#  act_src: 15
+#  sact_src: 69
+#  act_trg: 10
+#  sact_trg: 22
 
 gpus: [0, 1, 2, 3, 4, 5, 6, 7]
 num_workers: 3
@@ -19,7 +30,7 @@ lr: 0.03
 momentum: 0.9
 wd: 1e-4
 warmup_steps: 500
-num_epochs: 50
+num_epochs: 30
 
 # sampling
 num_crops: 3

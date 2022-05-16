@@ -2,9 +2,9 @@ dir_moma: /home/alanzluo/data/moma
 dir_wandb: /home/alanzluo/log
 dir_weights: /home/alanzluo/data/weights
 
-levels: [sact]
+levels: [act, sact]
 net: mvit
-optimizer: sgd
+optimizer: adamw
 mode: finetune
 few_shot: False
 weight: pretrain

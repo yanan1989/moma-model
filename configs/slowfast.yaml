@@ -4,7 +4,7 @@ dir_weights: /home/alanzluo/data/weights
 
 levels: [act, sact]
 net: slowfast
-optimizer: sgd
+optimizer: adamw
 mode: finetune
 few_shot: False
 weight: pretrain

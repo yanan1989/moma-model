@@ -14,26 +14,24 @@ class OneHeadClassifierModule(BaseClassifierModule):
                                   'acc5': torchmetrics.Accuracy(average='micro', top_k=5)})
 
   def training_step(self, batch, batch_idx):
-    batch_size = batch['video'][0].shape[0] if isinstance(batch['video'], list) else batch['video'].shape[0]
     x, y = batch['video'], batch['label']
     logits = self(x)
 
     loss = self.get_loss(logits, y)
-    self.log('train/loss', loss, prog_bar=True, batch_size=batch_size)
+    self.log('train/loss', loss, prog_bar=True, batch_size=x.shape[0])
 
     y_hat = self.get_pred(logits)
     for name, get_stat in self.metrics.items():
-      self.log(f'train/{name}', get_stat(y_hat, y), prog_bar=True, batch_size=batch_size)
+      self.log(f'train/{name}', get_stat(y_hat, y), prog_bar=True, batch_size=x.shape[0])
 
     return loss
 
   def validation_step(self, batch, batch_idx):
-    batch_size = batch['video'][0].shape[0] if isinstance(batch['video'], list) else batch['video'].shape[0]
     x, y = batch['video'], batch['label']
     logits = self(x)
 
     loss = self.get_loss(logits, y)
-    self.log('val/loss', loss, sync_dist=True, prog_bar=True, batch_size=batch_size)
+    self.log('val/loss', loss, sync_dist=True, prog_bar=True, batch_size=x.shape[0])
 
     y_hat = self.get_pred(logits)
     video_ids = batch['video_index'].clone()
@@ -41,7 +39,7 @@ class OneHeadClassifierModule(BaseClassifierModule):
 
   def on_validation_epoch_end(self):
     y_hat, y = self.ensembler.sync_and_aggregate_results()
-    if utils.get_rank() == 0:
+    if not utils.is_ddp() or utils.get_rank() == 0:
       for name, get_stat in self.metrics.items():
         stat = get_stat(y_hat, y)
         self.log(f'val/{name}', stat, on_epoch=True, prog_bar=True, rank_zero_only=True)

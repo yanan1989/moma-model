@@ -1,15 +1,15 @@
 import torch.nn.functional as F
 
-from .base_cls import BaseVideoClsModule
+from .base_classifier import BaseClassifierModule
 
 
-class OneHeadVideoClsModule(BaseVideoClsModule):
-  def __init__(self, moma, backbone, cfg) -> None:
-    super().__init__(moma, backbone, cfg)
+class OneHeadClassifierModule(BaseClassifierModule):
+  def __init__(self, data, net, cfg) -> None:
+    super().__init__(data, net, cfg)
 
   def training_step(self, batch, batch_idx):
     batch_size = batch['video'][0].shape[0] if isinstance(batch['video'], list) else batch['video'].shape[0]
-    y_hat = self.module(batch['video'])
+    y_hat = self(batch['video'])
     loss = F.cross_entropy(y_hat, batch['label'])
     pred = F.softmax(y_hat, dim=-1)
     top1 = self.top1(pred, batch['label'])
@@ -22,7 +22,7 @@ class OneHeadVideoClsModule(BaseVideoClsModule):
 
   def validation_step(self, batch, batch_idx):
     batch_size = batch['video'][0].shape[0] if isinstance(batch['video'], list) else batch['video'].shape[0]
-    y_hat = self.module(batch['video'])
+    y_hat = self(batch['video'])
     loss = F.cross_entropy(y_hat, batch['label'])
     pred = F.softmax(y_hat, dim=-1)
     top1 = self.top1(pred, batch['label'])

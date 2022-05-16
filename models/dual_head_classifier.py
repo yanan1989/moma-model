@@ -1,18 +1,18 @@
 import torch.nn.functional as F
 
-from .base_cls import BaseVideoClsModule
+from .base_classifier import BaseClassifierModule
 
 
-class DualHeadVideoClsModule(BaseVideoClsModule):
-  def __init__(self, moma, backbone, cfg) -> None:
-    super().__init__(moma, backbone, cfg)
+class DualHeadClassifierModule(BaseClassifierModule):
+  def __init__(self, data, net, cfg) -> None:
+    super().__init__(data, net, cfg)
 
   def training_step(self, batch, batch_idx):
     batch_size = batch['act']['video'][0].shape[0] if isinstance(batch['act']['video'], list) \
       else batch['act']['video'].shape[0]
 
-    y_hat_act, _ = self.module(batch['act']['video'])
-    _, y_hat_sact = self.module(batch['sact']['video'])
+    y_hat_act, _ = self(batch['act']['video'])
+    _, y_hat_sact = self(batch['sact']['video'])
 
     loss_act = F.cross_entropy(y_hat_act, batch['act']['label'])
     loss_sact = F.cross_entropy(y_hat_sact, batch['sact']['label'])
@@ -35,7 +35,7 @@ class DualHeadVideoClsModule(BaseVideoClsModule):
 
   def validation_step(self, batch, batch_idx, dataloader_idx):
     batch_size = batch['video'][0].shape[0] if isinstance(batch['video'], list) else batch['video'].shape[0]
-    y_hat_act, y_hat_sact = self.module(batch['video'])
+    y_hat_act, y_hat_sact = self(batch['video'])
     if dataloader_idx == 0:  # act
       loss_act = F.cross_entropy(y_hat_act, batch['label'])
       pred_act = F.softmax(y_hat_act, dim=-1)

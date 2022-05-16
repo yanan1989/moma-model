@@ -7,15 +7,15 @@ from trainers import get_trainer
 
 
 def main():
-  cfg = OmegaConf.load('./configs/config.yaml')
+  cfg = OmegaConf.load('configs/mvit.yaml')
   # print(OmegaConf.to_yaml(cfg))
 
-  moma = MOMA(cfg.dir_moma, few_shot=True)
+  moma = MOMA(cfg.dir_moma)
   data = get_data(moma, cfg)
   model = get_model(moma, cfg)
   trainer = get_trainer(cfg)
 
-  trainer.fit(model, data)
+  trainer.fit(model, datamodule=data)
 
 
 if __name__ == '__main__':

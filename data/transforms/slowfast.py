@@ -14,20 +14,22 @@ from torchvision.transforms import (
   RandomHorizontalFlip
 )
 
+from .constants import *
+
 
 # Reference: https://github.com/facebookresearch/pytorchvideo/blob/main/pytorchvideo_trainer/pytorchvideo_trainer/conf/datamodule/transforms/kinetics_classification_slowfast.yaml
-def get_slowfast_transforms(T=8, alpha=4):
+def get_slowfast_transforms(cfg):
   transform_train = ApplyTransformToKey(
     key='video',
     transform=Compose(
       transforms=[
-        UniformTemporalSubsample(num_samples=T*alpha),
+        UniformTemporalSubsample(num_samples=cfg.T*cfg.alpha),
         Div255(),
-        Normalize(mean=[0.45, 0.45, 0.45], std=[0.225, 0.225, 0.225]),
+        Normalize(mean=MEAN_KINETICS, std=STD_KINETICS),
         RandomShortSideScale(min_size=256, max_size=320),
         RandomCrop(224),
         RandomHorizontalFlip(p=0.5),
-        SlowFastPackPathway(alpha=alpha)
+        SlowFastPackPathway(alpha=cfg.alpha)
       ]
     )
   )
@@ -36,28 +38,16 @@ def get_slowfast_transforms(T=8, alpha=4):
     key='video',
     transform=Compose(
       transforms=[
-        UniformTemporalSubsample(num_samples=T*alpha),
+        UniformTemporalSubsample(num_samples=cfg.T*cfg.alpha),
         Div255(),
-        Normalize(mean=[0.45, 0.45, 0.45], std=[0.225, 0.225, 0.225]),
+        Normalize(mean=MEAN_KINETICS, std=STD_KINETICS),
         ShortSideScale(size=256),
         CenterCrop(256),
-        SlowFastPackPathway(alpha=alpha)
+        SlowFastPackPathway(alpha=cfg.alpha)
       ]
     )
   )
 
-  transform_test = ApplyTransformToKey(
-    key='video',
-    transform=Compose(
-      transforms=[
-        UniformTemporalSubsample(num_samples=T*alpha),
-        Div255(),
-        Normalize(mean=[0.45, 0.45, 0.45], std=[0.225, 0.225, 0.225]),
-        ShortSideScale(size=256),
-        CenterCrop(256),
-        SlowFastPackPathway(alpha=alpha)
-      ]
-    )
-  )
+  transform_test = transform_val
 
   return transform_train, transform_val, transform_test

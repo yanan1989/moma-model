@@ -15,19 +15,21 @@ from torchvision.transforms import (
   RandomHorizontalFlip
 )
 
+from .constants import *
+
 
 # Reference: https://github.com/facebookresearch/pytorchvideo/blob/main/pytorchvideo_trainer/pytorchvideo_trainer/conf/datamodule/transforms/kinetics_classification_mvit_16x4.yaml
-def get_mvit_transforms(T=16):
+def get_mvit_transforms(cfg):
   transform_train = ApplyTransformToKey(
     key='video',
     transform=Compose(
       transforms=[
-        UniformTemporalSubsample(num_samples=T),
+        UniformTemporalSubsample(num_samples=cfg.T),
         Div255(),
         Permute(dims=(1, 0, 2, 3)),
         RandAugment(magnitude=7, num_layers=4),
         Permute(dims=(1, 0, 2, 3)),
-        Normalize(mean=[0.45, 0.45, 0.45], std=[0.225, 0.225, 0.225]),
+        Normalize(mean=MEAN_KINETICS, std=STD_KINETICS),
         RandomResizedCrop(target_height=224, target_width=224, scale=(0.08, 1.0), aspect_ratio=(0.75, 1.3333)),
         RandomHorizontalFlip(p=0.5),
         Permute(dims=(1, 0, 2, 3)),
@@ -41,26 +43,15 @@ def get_mvit_transforms(T=16):
     key='video',
     transform=Compose(
       transforms=[
-        UniformTemporalSubsample(num_samples=T),
+        UniformTemporalSubsample(num_samples=cfg.T),
         Div255(),
-        Normalize(mean=[0.45, 0.45, 0.45], std=[0.225, 0.225, 0.225]),
+        Normalize(mean=MEAN_KINETICS, std=STD_KINETICS),
         ShortSideScale(224),
         CenterCrop(224)
       ]
     )
   )
 
-  transform_test = ApplyTransformToKey(
-    key='video',
-    transform=Compose(
-      transforms=[
-        UniformTemporalSubsample(num_samples=T),
-        Div255(),
-        Normalize(mean=[0.45, 0.45, 0.45], std=[0.225, 0.225, 0.225]),
-        ShortSideScale(224),
-        CenterCrop(224)
-      ]
-    )
-  )
+  transform_test = transform_val
 
   return transform_train, transform_val, transform_test

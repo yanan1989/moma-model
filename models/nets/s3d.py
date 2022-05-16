@@ -20,7 +20,7 @@ optimization.
 import torch as th
 import torch.nn.functional as F
 import torch.nn as nn
-import os
+import os.path as osp
 import numpy as np
 import re
 from pytorchvideo.models.head import create_res_basic_head
@@ -360,17 +360,17 @@ def create_multi_head(out_features):
   return multi_head
 
 
-def get_s3d_backbone(num_classes, dir_weights, finetune):
+def get_s3d(num_classes, dir_weights, finetune):
   if len(num_classes) == 1:
     head = create_head(num_classes[0])
   else:
     head = create_multi_head(num_classes)
 
-  module = S3D(os.path.join(dir_weights, 'pretrain/s3d_dict.npy'), head)
+  net = S3D(osp.join(dir_weights, 'pretrain/s3d_dict.npy'), head)
 
   if finetune:
-    weights = th.load(os.path.join(dir_weights, 'pretrain/s3d_howto100m.pth'))
-    print(f'{list(set(module.state_dict().keys())-set(weights.keys()))} will be trained from scratch')
-    module.load_state_dict(weights, strict=False)
+    weights = th.load(osp.join(dir_weights, 'pretrain/s3d_howto100m.pth'))
+    print(f'{list(set(net.state_dict().keys())-set(weights.keys()))} will be trained from scratch')
+    net.load_state_dict(weights, strict=False)
 
-  return module
+  return net

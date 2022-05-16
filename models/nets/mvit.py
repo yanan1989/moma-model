@@ -1,8 +1,9 @@
-import os
+import os.path as osp
 from pytorchvideo.models.head import create_vit_basic_head
 from pytorchvideo.models.vision_transformers import create_multiscale_vision_transformers
 import torch
 import torch.nn as nn
+from torchvision.datasets.utils import download_url
 
 from .multi_head import MultiHead
 
@@ -21,8 +22,8 @@ def create_multi_head(in_features, out_features, seq_pool_type, dropout_rate, ac
 
 
 # Reference: https://github.com/facebookresearch/pytorchvideo/blob/main/pytorchvideo_trainer/pytorchvideo_trainer/conf/module/model/mvit_base_16x4.yaml
-def get_mvit_backbone(num_classes, dir_weights, finetune):
-  module = create_multiscale_vision_transformers(
+def get_mvit(num_classes, dir_weights, finetune):
+  net = create_multiscale_vision_transformers(
     spatial_size=224,
     temporal_size=16,
     cls_embed_on=True,
@@ -58,10 +59,17 @@ def get_mvit_backbone(num_classes, dir_weights, finetune):
   )
 
   if finetune:
-    weights = torch.load(os.path.join(dir_weights, 'pretrain/MVIT_B_16x4.pyth'))['model_state']
-    weights.pop('head.proj.weight', None)
-    weights.pop('head.proj.bias', None)
-    print(f'{list(set(module.state_dict().keys())-set(weights.keys()))} will be trained from scratch')
-    module.load_state_dict(weights, strict=False)
+    print('Loading Kinetics pre-trained weight')
+    dir_pretrain = osp.join(dir_weights, 'pretrain')
+    fname_pretrain = 'MVIT_B_16x4.pyth'
+    if not osp.exists(osp.join(dir_pretrain, fname_pretrain)):
+      download_url(f'https://dl.fbaipublicfiles.com/pytorchvideo/model_zoo/kinetics/{fname_pretrain}', dir_pretrain)
 
-  return module
+    weight = torch.load(osp.join(dir_pretrain, fname_pretrain))['model_state']
+    weight.pop('head.proj.weight')
+    weight.pop('head.proj.bias')
+    keys_missing, keys_unexpected = net.load_state_dict(weight, strict=False)
+    assert len(keys_unexpected) == 0
+    print(f'{keys_missing} will be trained from scratch')
+
+  return net

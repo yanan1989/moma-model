@@ -3,23 +3,10 @@ dir_wandb: /home/alanzluo/log
 dir_weights: /home/alanzluo/data/weights
 
 levels: [act, sact]
-backbone: mvit
-strategy: finetune
-few_shot: True
-
-#num_classes:
-#  act: 20
-#  sact: 91
-
-num_classes:
-  act: 15
-  sact: 69
-
-#num_classes_fs:
-#  act_src: 15
-#  sact_src: 69
-#  act_trg: 10
-#  sact_trg: 22
+net: mvit
+optimizer: sgd
+mode: finetune
+few_shot: False
 
 gpus: [0, 1, 2, 3, 4, 5, 6, 7]
 num_workers: 3
@@ -35,12 +22,5 @@ num_epochs: 30
 # sampling
 num_crops: 3
 num_clips: 10
-T:
-  mvit: 16
-  slowfast: 8
-  s3d: 30
-tau:
-  mvit: 4
-  slowfast: 8
-  s3d: 1
-alpha: 4
+T: 16
+tau: 4

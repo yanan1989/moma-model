@@ -13,12 +13,12 @@ gpus: [0, 1, 2, 3, 4, 5, 6, 7]
 num_workers: 3
 
 num_epochs: 30
-warmup_steps: 50
-batch_size: 256
+warmup_steps: 100
+batch_size: 128
 fps: 30
 lr:
-  sgd: 0.03
-  adamw: 0.0016
+  sgd: 0.24
+  adamw: 0.0008
 momentum: 0.9
 wd:
   sgd: 1e-4

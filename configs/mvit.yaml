@@ -2,24 +2,28 @@ dir_moma: /home/alanzluo/data/moma
 dir_wandb: /home/alanzluo/log
 dir_weights: /home/alanzluo/data/weights
 
-levels: [act, sact]
+levels: [act]
 net: mvit
 optimizer: sgd
 mode: finetune
 few_shot: False
+weight: pretrain
 
 gpus: [0, 1, 2, 3, 4, 5, 6, 7]
 num_workers: 3
 
-batch_size: 64
-fps: 30
-lr: 0.03
-momentum: 0.9
-wd: 1e-4
-warmup_steps: 500
 num_epochs: 30
+warmup_steps: 50
+batch_size: 256
+fps: 30
+lr:
+  sgd: 0.03
+  adamw: 0.0016
+momentum: 0.9
+wd:
+  sgd: 1e-4
+  adamw: 0.05
 
-# sampling
 num_crops: 3
 num_clips: 10
 T: 16

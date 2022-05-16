@@ -1,11 +1,14 @@
 import torch.nn.functional as F
 
 from .base_classifier import BaseClassifierModule
+from .ensembler import Ensembler
+import utils
 
 
 class DualHeadClassifierModule(BaseClassifierModule):
-  def __init__(self, data, net, cfg) -> None:
-    super().__init__(data, net, cfg)
+  def __init__(self, cfg) -> None:
+    super().__init__(cfg)
+    self.ensemblers = [Ensembler(num_classes=n, gpus=cfg.gpus) for n in cfg.num_classes]
 
   def training_step(self, batch, batch_idx):
     batch_size = batch['act']['video'][0].shape[0] if isinstance(batch['act']['video'], list) \
@@ -59,5 +62,10 @@ class DualHeadClassifierModule(BaseClassifierModule):
       self.log('val/sact/acc1', top1_sact, batch_size=batch_size, sync_dist=True, add_dataloader_idx=False, prog_bar=True)
       self.log('val/sact/acc5', top5_sact, batch_size=batch_size, sync_dist=True, add_dataloader_idx=False)
 
-  def test_step(self, batch, batch_idx, dataloader_idx):
-    pass
+  def on_validation_epoch_end(self):
+    for ensembler, level in zip(self.ensemblers, self.cfg.levels):
+      y_hat, y = ensembler.sync_and_aggregate_results()
+      if utils.get_rank() == 0:
+        for name, get_stat in self.metrics.items():
+          stat = get_stat(y_hat, y)
+          self.log(f'val/{level}/{name}', stat, on_epoch=True, prog_bar=True, rank_zero_only=True)

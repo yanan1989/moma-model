@@ -72,11 +72,7 @@ class MOMADataModule(LightningDataModule):
     self.moma = moma
     self.cfg = cfg
     self.datasets_train, self.datasets_val, self.datasets_test = {}, {}, {}
-
-    if cfg.few_shot:
-      cfg.num_classes = {'act_src': 15, 'sact_src': 69, 'act_trg': 10, 'sact_trg': 22}
-    else:
-      cfg.num_classes = {'act': 20, 'sact': 91}
+    self.num_classes = {'act': 20, 'sact': 91, 'act_src': 15, 'sact_src': 69, 'act_trg': 10, 'sact_trg': 22}
 
   def setup(self, stage=None):
     for level in self.cfg.levels:

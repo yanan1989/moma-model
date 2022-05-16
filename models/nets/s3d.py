@@ -17,13 +17,14 @@ The S3D architecture was slightly modified with a space to depth trick for TPU
 optimization.
 """
 
-import torch as th
+import torch
 import torch.nn.functional as F
 import torch.nn as nn
 import os.path as osp
 import numpy as np
 import re
 from pytorchvideo.models.head import create_res_basic_head
+from torchvision.datasets.utils import download_url
 
 from .multi_head import MultiHead
 
@@ -50,11 +51,11 @@ class InceptionBlock(nn.Module):
     self.conv_b2_b = STConv3D(
       num_outputs_2_0a, num_outputs_2_0b, [3, 3, 3], padding=1, separable=True
     )
-    self.maxpool_b3 = th.nn.MaxPool3d((3, 3, 3), stride=1, padding=1)
+    self.maxpool_b3 = torch.nn.MaxPool3d((3, 3, 3), stride=1, padding=1)
     self.conv_b3_b = STConv3D(input_dim, num_outputs_3_0b, [1, 1, 1])
     self.gating = gating
     self.output_dim = (
-        num_outputs_0_0a + num_outputs_1_0b + num_outputs_2_0b + num_outputs_3_0b
+        num_outputs_0_0a+num_outputs_1_0b+num_outputs_2_0b+num_outputs_3_0b
     )
     if gating:
       self.gating_b0 = SelfGating(num_outputs_0_0a)
@@ -77,7 +78,7 @@ class InceptionBlock(nn.Module):
       b1 = self.gating_b1(b1)
       b2 = self.gating_b2(b2)
       b3 = self.gating_b3(b3)
-    return th.cat((b0, b1, b2, b3), dim=1)
+    return torch.cat((b0, b1, b2, b3), dim=1)
 
 
 class SelfGating(nn.Module):
@@ -88,10 +89,10 @@ class SelfGating(nn.Module):
   def forward(self, input_tensor):
     """Feature gating as used in S3D-G.
   """
-    spatiotemporal_average = th.mean(input_tensor, dim=[2, 3, 4])
+    spatiotemporal_average = torch.mean(input_tensor, dim=[2, 3, 4])
     weights = self.fc(spatiotemporal_average)
-    weights = th.sigmoid(weights)
-    return weights[:, :, None, None, None] * input_tensor
+    weights = torch.sigmoid(weights)
+    return weights[:, :, None, None, None]*input_tensor
 
 
 class STConv3D(nn.Module):
@@ -154,20 +155,20 @@ class STConv3D(nn.Module):
     return out
 
 
-class MaxPool3dTFPadding(th.nn.Module):
+class MaxPool3dTFPadding(torch.nn.Module):
   def __init__(self, kernel_size, stride=None, padding="SAME"):
     super(MaxPool3dTFPadding, self).__init__()
     if padding == "SAME":
       padding_shape = self._get_padding_shape(kernel_size, stride)
       self.padding_shape = padding_shape
-      self.pad = th.nn.ConstantPad3d(padding_shape, 0)
-    self.pool = th.nn.MaxPool3d(kernel_size, stride, ceil_mode=True)
+      self.pad = torch.nn.ConstantPad3d(padding_shape, 0)
+    self.pool = torch.nn.MaxPool3d(kernel_size, stride, ceil_mode=True)
 
   def _get_padding_shape(self, filter_shape, stride):
     def _pad_top_bottom(filter_dim, stride_val):
-      pad_along = max(filter_dim - stride_val, 0)
-      pad_top = pad_along // 2
-      pad_bottom = pad_along - pad_top
+      pad_along = max(filter_dim-stride_val, 0)
+      pad_top = pad_along//2
+      pad_bottom = pad_along-pad_top
       return pad_top, pad_bottom
 
     padding_shape = []
@@ -205,14 +206,14 @@ class Sentence_Embedding(nn.Module):
     self.max_words = max_words
     token_to_word = np.load(token_to_word_path)
     for i, t in enumerate(token_to_word):
-      self.word_to_token[t] = i + 1
+      self.word_to_token[t] = i+1
 
   def _zero_pad_tensor_token(self, tensor, size):
     if len(tensor) >= size:
       return tensor[:size]
     else:
-      zero = th.zeros(size - len(tensor)).long()
-      return th.cat((tensor, zero), dim=0)
+      zero = torch.zeros(size-len(tensor)).long()
+      return torch.cat((tensor, zero), dim=0)
 
   def _split_text(self, sentence):
     w = re.findall(r"[\w']+", str(sentence))
@@ -223,20 +224,20 @@ class Sentence_Embedding(nn.Module):
       self.word_to_token[word] for word in words if word in self.word_to_token
     ]
     if words:
-      we = self._zero_pad_tensor_token(th.LongTensor(words), self.max_words)
+      we = self._zero_pad_tensor_token(torch.LongTensor(words), self.max_words)
       return we
     else:
-      return th.zeros(self.max_words).long()
+      return torch.zeros(self.max_words).long()
 
   def _words_to_ids(self, x):
     split_x = [self._words_to_token(self._split_text(sent.lower())) for sent in x]
-    return th.stack(split_x, dim=0)
+    return torch.stack(split_x, dim=0)
 
   def forward(self, x):
     x = self._words_to_ids(x)
     x = self.word_embd(x)
     x = F.relu(self.fc1(x))
-    x = th.max(x, dim=1)[0]
+    x = torch.max(x, dim=1)[0]
     x = self.fc2(x)
     return {'text_embedding': x}
 
@@ -303,9 +304,9 @@ class S3D(nn.Module):
     """3D space to depth trick for TPU optimization.
   """
     B, C, T, H, W = input.shape
-    input = input.view(B, C, T // 2, 2, H // 2, 2, W // 2, 2)
+    input = input.view(B, C, T//2, 2, H//2, 2, W//2, 2)
     input = input.permute(0, 3, 5, 7, 1, 2, 4, 6)
-    input = input.contiguous().view(B, 8 * C, T // 2, H // 2, W // 2)
+    input = input.contiguous().view(B, 8*C, T//2, H//2, W//2)
     return input
 
   def forward(self, inputs):
@@ -336,7 +337,7 @@ class S3D(nn.Module):
     net = self.mixed_5c(net)
 
     if self.head is None:
-      net = th.mean(net, dim=[2, 3, 4])
+      net = torch.mean(net, dim=[2, 3, 4])
       return self.fc(net)
     else:
       return self.head(net)
@@ -360,17 +361,46 @@ def create_multi_head(out_features):
   return multi_head
 
 
-def get_s3d(num_classes, dir_weights, finetune):
-  if len(num_classes) == 1:
-    head = create_head(num_classes[0])
+def get_s3d(cfg):
+  fname_token = 's3d_dict.npy'
+  if not osp.exists(osp.join(cfg.dir_weights, fname_token)):
+    download_url(f'https://www.rocq.inria.fr/cluster-willow/amiech/howto100m/{fname_token}', cfg.dir_weights)
+
+  head = create_head(cfg.num_classes[0]) if len(cfg.num_classes) == 1 else create_multi_head(cfg.num_classes)
+  net = S3D(osp.join(cfg.dir_weights, 's3d_dict.npy'), head)
+
+  if cfg.mode == 'from_scratch':
+    print('Initializing randomly')
+
+  elif cfg.mode == 'finetune':
+    if cfg.weight == 'ckpt':
+      print('Loading checkpoint')
+      weight = torch.load(osp.join(cfg.dir_weights, cfg.rpath_ckpt))['state_dict']
+      weight = {k.removeprefix('net.'): v for k, v in weight.items()}
+      weight.pop('fc.weight')
+      weight.pop('fc.bias')
+      keys_missing, keys_unexpected = net.load_state_dict(weight, strict=False)
+      assert len(keys_unexpected) == 0
+      print(f'{keys_missing} will be trained from scratch')
+
+    elif cfg.weight == 'pretrain':
+      print('Loading HowTo100M pre-trained weight')
+      dir_pretrain = osp.join(cfg.dir_weights, 'pretrain')
+      fname_pretrain = 's3d_howto100m.pth'
+      if not osp.exists(osp.join(dir_pretrain, fname_pretrain)):
+        download_url(f'https://www.rocq.inria.fr/cluster-willow/amiech/howto100m/{fname_pretrain}', dir_pretrain)
+
+      weight = torch.load(osp.join(dir_pretrain, fname_pretrain))
+      weight.pop('fc.weight')
+      weight.pop('fc.bias')
+      keys_missing, keys_unexpected = net.load_state_dict(weight, strict=False)
+      assert len(keys_unexpected) == 0
+      print(f'{keys_missing} will be trained from scratch')
+
+    else:
+      raise NotImplementedError
+
   else:
-    head = create_multi_head(num_classes)
-
-  net = S3D(osp.join(dir_weights, 'pretrain/s3d_dict.npy'), head)
-
-  if finetune:
-    weights = th.load(osp.join(dir_weights, 'pretrain/s3d_howto100m.pth'))
-    print(f'{list(set(net.state_dict().keys())-set(weights.keys()))} will be trained from scratch')
-    net.load_state_dict(weights, strict=False)
+    raise NotImplementedError
 
   return net

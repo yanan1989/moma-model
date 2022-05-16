@@ -1,14 +1,19 @@
-from .nets import get_net
+from omegaconf.dictconfig import DictConfig
+
 from .one_head_classifier import OneHeadClassifierModule
 from .dual_head_classifier import DualHeadClassifierModule
 
 
-def get_model(moma, cfg):
-  net = get_net(cfg)
+def get_model(cfg):
+  if isinstance(cfg.lr, DictConfig):
+    cfg.lr = cfg.lr[cfg.optimizer]
+
+  if isinstance(cfg.wd, DictConfig):
+    cfg.wd = cfg.wd[cfg.optimizer]
 
   if len(cfg.levels) == 1:
-    return OneHeadClassifierModule(moma, net, cfg)
+    return OneHeadClassifierModule(cfg)
   elif len(cfg.levels) == 2:
-    return DualHeadClassifierModule(moma, net, cfg)
+    return DualHeadClassifierModule(cfg)
   else:
     raise NotImplementedError

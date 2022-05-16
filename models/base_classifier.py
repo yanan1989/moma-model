@@ -1,19 +1,21 @@
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from functools import partial
 from pytorch_lightning import LightningModule
-from torch.optim import SGD
-import torchmetrics
+import torch.nn.functional as F
+from torch.optim import SGD, AdamW
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
+from .nets import get_net
 import utils
 
 
 class BaseClassifierModule(LightningModule):
-  def __init__(self, data, net, cfg) -> None:
+  def __init__(self, cfg) -> None:
     super().__init__()
     self.cfg = cfg
-    self.data = data
-    self.net = net
-    self.top1 = torchmetrics.Accuracy(top_k=1)
-    self.top5 = torchmetrics.Accuracy(top_k=5)
+    self.net = get_net(cfg)
+
+    self.get_loss = F.cross_entropy
+    self.get_pred = partial(F.softmax, dim=-1)
 
   def on_train_epoch_start(self):
     """ Needed for shuffling in distributed training
@@ -29,12 +31,12 @@ class BaseClassifierModule(LightningModule):
     return self.net(x)
 
   def configure_optimizers(self):
-    optimizer = SGD(
-      self.net.parameters(),
-      lr=self.cfg.lr,
-      momentum=self.cfg.momentum,
-      weight_decay=self.cfg.wd
-    )
+    if self.cfg.optimizer == 'sgd':
+      optimizer = SGD(self.net.parameters(), lr=self.cfg.lr, momentum=self.cfg.momentum, weight_decay=self.cfg.wd)
+    elif self.cfg.optimizer == 'adamw':
+      optimizer = AdamW(self.net.parameters(), lr=self.cfg.lr, weight_decay=self.cfg.wd)
+    else:
+      raise NotImplementedError
     scheduler = CosineAnnealingLR(optimizer, self.cfg.num_epochs)
 
     return [optimizer], [scheduler]

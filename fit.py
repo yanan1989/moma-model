@@ -8,11 +8,10 @@ from trainers import get_trainer
 
 def main():
   cfg = OmegaConf.load('configs/mvit.yaml')
-  # print(OmegaConf.to_yaml(cfg))
 
   moma = MOMA(cfg.dir_moma)
   data = get_data(moma, cfg)
-  model = get_model(moma, cfg)
+  model = get_model(cfg)
   trainer = get_trainer(cfg)
 
   trainer.fit(model, datamodule=data)

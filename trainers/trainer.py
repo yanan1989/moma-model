@@ -6,7 +6,7 @@ from pytorch_lightning.strategies import DDPStrategy
 
 
 def get_trainer(cfg):
-  name = f"{'_'.join(cfg.levels)}_{cfg.net}_{cfg.mode}"+('_fs' if cfg.few_shot else '')
+  name = f"{'_'.join(cfg.levels)}_{cfg.net}_{cfg.mode}_{cfg.paradigm}"
   logger = WandbLogger(
     project='moma',
     name=name,

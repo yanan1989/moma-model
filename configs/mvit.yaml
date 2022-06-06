@@ -6,7 +6,7 @@ levels: [act, sact]
 net: mvit
 optimizer: adamw
 mode: finetune
-few_shot: False
+paradigm: standard
 weight: pretrain
 
 gpus: [0, 1, 2, 3, 4, 5, 6, 7]

@@ -6,7 +6,7 @@ levels: [act, sact]
 net: s3d
 optimizer: sgd
 mode: finetune
-few_shot: False
+paradigm: few-shot
 weight: pretrain
 
 gpus: [0, 1, 2, 3, 4, 5, 6, 7]

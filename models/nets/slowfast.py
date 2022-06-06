@@ -26,11 +26,7 @@ def create_multi_head(in_features, out_features, pool, output_size, dropout_rate
 # Reference: https://github.com/facebookresearch/pytorchvideo/blob/main/pytorchvideo_trainer/pytorchvideo_trainer/conf/module/model/slowfast_r50.yaml
 def get_slowfast(cfg):
   net = create_slowfast(
-    input_channels=(3, 3),
-    model_depth=50,
     model_num_class=cfg.num_classes[0] if len(cfg.num_classes) == 1 else cfg.num_classes,
-    dropout_rate=0.5,
-    slowfast_fusion_conv_kernel_size=(7, 1, 1),
     head=create_res_basic_head if len(cfg.num_classes) == 1 else create_multi_head
   )
 
